@@ -19,4 +19,5 @@ class Company(str, Enum):
     KAKAO = "카카오"
     LINE = "라인"
     TOSS = "토스"
+    DEVOCEAN = "DEVOCEAN"
     ETC = "기타"

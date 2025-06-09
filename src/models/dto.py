@@ -12,6 +12,7 @@ class CrawledContentDto:
     source_name: str
     thumbnail_url: str
     published_at: datetime
+    company: str = ""
 
 
 @dataclass
