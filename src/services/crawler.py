@@ -42,6 +42,8 @@ class BlogCrawler:
         
         if 'naver.com' in blog_url or 'd2.naver.com' in blog_url:
             return self._crawl_naver_blog(blog_url, config.get('max_posts', 5), config.get('name', '네이버 D2'))
+        elif 'kakao.com' in blog_url or 'tech.kakao.com' in blog_url:
+            return self._crawl_kakao_blog(blog_url, config.get('max_posts', 5), config.get('name', '카카오 기술 블로그'))
         else:
             return self._crawl_generic_blog(blog_url, config)
 
@@ -115,6 +117,74 @@ class BlogCrawler:
             
         return results
 
+    def _crawl_kakao_blog(self, blog_url: str, max_posts: int, source_name: str = "카카오") -> List[CrawledContentDto]:
+        """카카오 기술 블로그를 크롤링합니다. RSS 피드 형식을 파싱합니다.
+        
+        Args:
+            blog_url: 크롤링할 블로그 URL
+            max_posts: 최대 크롤링할 포스트 수
+            source_name: 블로그 소스 이름 (기본값: "카카오")
+        """
+        logger.info(f"{source_name} 블로그 크롤링 시작: {blog_url}")
+        results = []
+        
+        try:
+            feed = feedparser.parse(blog_url)
+            
+            for entry in feed.entries[:max_posts]:
+                try:
+                    title = entry.get('title', '제목 없음')
+                    link = entry.get('link', '')
+                    
+                    content = ''
+                    if 'content' in entry and len(entry.content) > 0:
+                        content = self._extract_text_from_html(entry.content[0].value)
+                    elif 'summary' in entry:
+                        content = self._extract_text_from_html(entry.summary)
+                    
+                    published = entry.get('published', entry.get('pubDate', entry.get('updated', '')))
+                    logger.debug(f"발행일 원본 문자열: {published}")
+                    
+                    try:
+                        published_at = datetime.strptime(published, '%a, %d %b %Y %H:%M:%S %Z')
+                        logger.debug(f"파싱된 날짜: {published_at}")
+                    except ValueError:
+                        try:
+                            published_at = datetime.strptime(published, '%a, %d %b %Y %H:%M:%S %z')
+                        except ValueError:
+                            try:
+                                published_at = datetime.strptime(published, '%Y-%m-%dT%H:%M:%S%z')
+                            except ValueError:
+                                logger.warning(f"날짜 파싱 실패: {published}, 현재 시간으로 대체")
+                                published_at = datetime.now()
+                    
+                    thumbnail_url = self._extract_thumbnail(entry)
+                    
+                    if thumbnail_url:
+                        logger.info(f"포스트 '{title}' 썸네일 URL: {thumbnail_url}")
+                    else:
+                        logger.warning(f"포스트 '{title}' 썸네일을 찾을 수 없음")
+                    
+                    dto = CrawledContentDto(
+                        title=title,
+                        content=content,
+                        url=link,
+                        source_name=source_name,
+                        thumbnail_url=thumbnail_url,
+                        published_at=published_at
+                    )
+                    
+                    results.append(dto)
+                    
+                except Exception as e:
+                    logger.error(f"포스트 처리 중 오류 발생: {str(e)}")
+                    continue
+                    
+        except Exception as e:
+            logger.error(f"RSS 피드 파싱 중 오류 발생: {str(e)}")
+            
+        return results
+
     def _crawl_generic_blog(self, blog_url: str, config: Dict[str, Any]) -> List[CrawledContentDto]:
         """일반적인 블로그를 크롤링합니다."""
         # TODO: Playwright를 사용한 일반 블로그 크롤링 구현
@@ -123,19 +193,20 @@ class BlogCrawler:
 
     def _extract_thumbnail(self, entry) -> str:
         """엔트리에서 썸네일 URL을 추출합니다."""
-        # 1. media_thumbnail 확인
+        if hasattr(entry, 'thumbnail'):
+            logger.info("thumbnail 태그에서 썸네일 찾음")
+            return entry.thumbnail
+        
         if hasattr(entry, 'media_thumbnail') and entry.media_thumbnail:
             logger.info("media_thumbnail에서 썸네일 찾음")
             return entry.media_thumbnail[0]['url']
         
-        # 2. 이미지 링크 확인
         if hasattr(entry, 'links'):
             for link in entry.links:
                 if link.get('type', '').startswith('image'):
                     logger.info("이미지 링크에서 썸네일 찾음")
                     return link.get('href', '')
         
-        # 3. 본문에서 이미지 추출
         if hasattr(entry, 'content'):
             for content in entry.content:
                 if not hasattr(content, 'value'):
@@ -145,7 +216,6 @@ class BlogCrawler:
                     logger.info("본문에서 이미지 추출")
                     return img_match.group(1)
         
-        # 4. summary에서 이미지 추출
         if hasattr(entry, 'summary'):
             img_match = re.search(r'<img[^>]+src=[\'"]([^\'"]+)[\'"]', entry.summary, re.IGNORECASE)
             if img_match:

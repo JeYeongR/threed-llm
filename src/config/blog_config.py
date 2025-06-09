@@ -6,7 +6,7 @@ BLOG_CONFIGS = [
         "max_posts": 5
     },
     {
-        "blog_url": "https://tech.kakao.com/",
+        "blog_url": "https://tech.kakao.com/feed",
         "name": "카카오 기술 블로그",
         "company": "KAKAO",
         "max_posts": 5
