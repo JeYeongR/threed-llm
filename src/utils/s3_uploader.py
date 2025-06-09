@@ -13,7 +13,6 @@ logger = logging.getLogger(__name__)
 
 
 class S3Uploader:
-    """S3에 이미지를 업로드하는 클래스"""
 
     def __init__(self):
         self.aws_access_key = os.getenv("AWS_ACCESS_KEY_ID")
@@ -29,7 +28,6 @@ class S3Uploader:
             self._init_s3_client()
 
     def _init_s3_client(self):
-        """S3 클라이언트 초기화"""
         try:
             self.s3_client = boto3.client(
                 "s3",
@@ -43,7 +41,6 @@ class S3Uploader:
             self.s3_client = None
 
     def upload_image(self, image_data, company_name=None, original_filename=None):
-        """이미지를 S3에 업로드하고 URL 반환"""
         if self.s3_client is None:
             logger.error("S3 클라이언트가 초기화되지 않았습니다.")
             return None
@@ -66,14 +63,12 @@ class S3Uploader:
             return None
 
     def _get_file_extension(self, original_filename):
-        """파일 확장자 추출"""
         extension = "jpg"
         if original_filename and "." in original_filename:
             extension = original_filename.split(".")[-1].lower()
         return extension
 
     def _generate_s3_key(self, company_name, extension):
-        """S3 키 생성"""
         unique_filename = f"{uuid.uuid4()}.{extension}"
 
         if company_name:
@@ -82,7 +77,6 @@ class S3Uploader:
             return f"thumbnails/{unique_filename}"
 
     def _upload_to_s3(self, image_data, key, extension):
-        """S3에 파일 업로드"""
         self.s3_client.upload_fileobj(
             BytesIO(image_data),
             self.s3_bucket,
@@ -91,5 +85,4 @@ class S3Uploader:
         )
 
 
-# 싱글톤 인스턴스 생성
 s3_uploader = S3Uploader()

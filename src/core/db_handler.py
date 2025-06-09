@@ -11,7 +11,6 @@ logger = logging.getLogger(__name__)
 
 
 def save_to_rds(posts: List[CompanyPost]) -> Tuple[int, int]:
-    """RDS에 포스트 저장"""
     saved_count = 0
     error_count = 0
 

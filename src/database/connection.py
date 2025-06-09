@@ -13,12 +13,10 @@ SessionLocal = None
 
 
 def get_session_factory(bind):
-    """세션 팩토리 생성"""
     return sessionmaker(autocommit=False, autoflush=False, bind=bind)
 
 
 def init_db():
-    """데이터베이스 초기화"""
     global engine, SessionLocal
 
     if SessionLocal is not None:
@@ -50,7 +48,6 @@ def init_db():
 
 
 def get_db() -> Generator:
-    """데이터베이스 세션 의존성 주입"""
     db = SessionLocal()
     try:
         yield db

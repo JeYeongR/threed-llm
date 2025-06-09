@@ -7,7 +7,6 @@ Base = declarative_base()
 
 
 class DBPost(Base):
-    """데이터베이스 포스트 모델"""
 
     __tablename__ = "posts"
 
@@ -26,7 +25,6 @@ class DBPost(Base):
 
 
 class DBCompanyPost(DBPost):
-    """데이터베이스 회사 포스트 모델"""
 
     __tablename__ = "company_posts"
 

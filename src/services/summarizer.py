@@ -12,7 +12,6 @@ logger = logging.getLogger(__name__)
 
 
 class SummaryResult(BaseModel):
-    """요약 결과 모델"""
 
     summary: str = Field(description="500-520자 사이의 요약 내용")
     field: Literal[
@@ -45,22 +44,12 @@ AI, Backend, Frontend, DevOps, Mobile, DB, Collab Tool, 기타
 
 
 def get_chat_client():
-    """ChatOpenAI 클라이언트를 생성하는 함수"""
     return ChatOpenAI(
         model_name="gpt-4o-mini", temperature=0.3, openai_api_key=OPENAI_API_KEY
     )
 
 
 def summarize_content(content: str) -> Dict[str, str]:
-    """
-    주어진 콘텐츠를 요약하고 분류합니다.
-
-    Args:
-        content (str): 요약할 원본 텍스트
-
-    Returns:
-        dict: {"summary": 요약문, "field": 분류카테고리} 형식의 딕셔너리
-    """
     parser = PydanticOutputParser(pydantic_object=SummaryResult)
 
     prompt = ChatPromptTemplate.from_messages(

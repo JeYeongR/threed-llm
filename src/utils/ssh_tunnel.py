@@ -10,7 +10,6 @@ logger = logging.getLogger(__name__)
 
 
 class DBTunnel:
-    """SSH 터널을 통한 데이터베이스 연결 관리 클래스"""
 
     _instance = None
 
@@ -29,7 +28,7 @@ class DBTunnel:
         self.local_bind_port = 3307
 
     def start(self):
-        """SSH 터널 시작"""
+
         if self.tunnel is not None and self.tunnel.is_active:
             logger.info("SSH 터널이 이미 실행 중입니다.")
             return True
@@ -71,14 +70,14 @@ class DBTunnel:
             return False
 
     def stop(self):
-        """SSH 터널 중지"""
+
         if self.tunnel is not None:
             self.tunnel.stop()
             self.tunnel = None
             logger.info("SSH 터널이 중지되었습니다.")
 
     def get_connection_params(self):
-        """데이터베이스 연결 파라미터 반환"""
+
         return {
             "host": "127.0.0.1",
             "port": self.local_bind_port,
@@ -88,11 +87,10 @@ class DBTunnel:
         }
 
     def __del__(self):
-        """객체 소멸 시 터널 자동 종료"""
+
         self.stop()
 
 
-# 싱글톤 인스턴스 생성
 db_tunnel = DBTunnel()
 
 if __name__ == "__main__":

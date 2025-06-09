@@ -48,7 +48,7 @@ def setup_parser():
 
 
 def run_crawl_and_process():
-    """크롤링 및 처리를 실행합니다."""
+
     from src.core.db_handler import save_to_rds
     from src.core.post_processor import process_posts
     from src.services.crawler import BlogCrawler
@@ -79,7 +79,7 @@ def run_crawl_and_process():
 
 
 def run_crawl_only():
-    """크롤링만 실행합니다."""
+
     from src.services.crawler import BlogCrawler
 
     try:
@@ -104,13 +104,13 @@ def run_crawl_only():
 
 
 def run_summarize_only():
-    """요약만 실행합니다."""
+
     logger.error("요약만 실행하는 기능은 아직 구현되지 않았습니다.")
     return 1
 
 
 def main():
-    """메인 함수"""
+
     parser = setup_parser()
     args = parser.parse_args()
 
