@@ -13,7 +13,7 @@ BLOG_CONFIGS = [
         "blog_url": "https://d2.naver.com/d2.atom",
         "name": "네이버 기술 블로그",
         "company": "NAVER",
-        "max_posts": 1
+        "max_posts": 5
     },
     {
         "blog_url": "https://tech.kakao.com/",

@@ -1,5 +1,6 @@
 import feedparser
 import re
+import logging
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 import requests
@@ -88,10 +89,24 @@ class BlogCrawler:
                         for link in entry.links:
                             if link.get('type', '').startswith('image'):
                                 thumbnail_url = link.href
+                                logging.info(f"이미지 링크에서 썸네일 찾음: {thumbnail_url}")
                                 break
                     
                     if not thumbnail_url and 'media_thumbnail' in entry:
                         thumbnail_url = entry.media_thumbnail[0]['url']
+                        logging.info(f"media_thumbnail에서 썸네일 찾음: {thumbnail_url}")
+                    
+                    if not thumbnail_url:
+                        if 'content' in entry and len(entry.content) > 0:
+                            img_match = re.search(r'<img[^>]+src=["\']([^"\'>]+)', entry.content[0].value)
+                            if img_match:
+                                thumbnail_url = img_match.group(1)
+                                logging.info(f"본문에서 이미지 추출: {thumbnail_url}")
+                    
+                    if thumbnail_url:
+                        logging.info(f"포스트 '{title}' 썸네일 URL: {thumbnail_url}")
+                    else:
+                        logging.warning(f"포스트 '{title}' 썸네일을 찾을 수 없음")
                     
                     dto = CrawledContentDto(
                         title=title,
@@ -120,11 +135,9 @@ class BlogCrawler:
 
     def _extract_thumbnail(self, entry) -> str:
         """엔트리에서 썸네일 URL을 추출합니다."""
-        # 네이버 블로그는 media:thumbnail 태그에 썸네일이 있음
         if hasattr(entry, 'media_thumbnail') and entry.media_thumbnail:
             return entry.media_thumbnail[0]['url']
             
-        # 또는 content에서 이미지 URL 추출 시도
         if hasattr(entry, 'content'):
             for content in entry.content:
                 if not hasattr(content, 'value'):

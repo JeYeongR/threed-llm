@@ -1,15 +1,20 @@
 import os
 import sys
 import logging
+import requests
 from datetime import datetime
-from typing import List
+from typing import List, Tuple
+from io import BytesIO
 
 from dotenv import load_dotenv
 from sqlalchemy.exc import IntegrityError
 
 from crawler import BlogCrawler
+from database import init_db, get_db, DBCompanyPost
 from models import CompanyPost, Company, Field, CrawledContentDto
 from summarizer import summarize_content
+from config import BLOG_CONFIGS
+from s3_uploader import s3_uploader
 
 logging.basicConfig(
     level=logging.INFO,
@@ -130,14 +135,36 @@ def process_posts(crawled_posts: List[CrawledContentDto]) -> List[CompanyPost]:
             logger.info("  - 요약 생성 중...")
             summary_result = summarize_content(crawled.content)
             
-            logger.info("  - 썸네일 처리 생략...")
-            thumbnail_data = None
+            logger.info("  - 썸네일 처리 중...")
+            thumbnail_url = crawled.thumbnail_url
             
             company_name = None
             for config in BLOG_CONFIGS:  
                 if config['name'] == crawled.source_name:
                     company_name = config['company']
                     break
+            
+            if thumbnail_url:
+                try:
+                    logger.info(f"    - 썸네일 다운로드 중: {thumbnail_url}")
+                    response = requests.get(thumbnail_url, timeout=10)
+                    response.raise_for_status()
+                    
+                    # S3에 업로드
+                    logger.info("    - S3에 썸네일 업로드 중...")
+                    s3_url = s3_uploader.upload_image(
+                        response.content,
+                        company_name=company_name.lower() if company_name else None,
+                        original_filename=thumbnail_url.split('/')[-1] if '/' in thumbnail_url else None
+                    )
+                    
+                    if s3_url:
+                        logger.info(f"    - S3 업로드 성공: {s3_url}")
+                        thumbnail_url = s3_url
+                    else:
+                        logger.warning("    - S3 업로드 실패, 원본 URL 사용")
+                except Exception as e:
+                    logger.error(f"    - 썸네일 처리 중 오류 발생: {str(e)}")
             
             try:
                 company = Company[company_name] if company_name else Company.ETC
@@ -147,7 +174,7 @@ def process_posts(crawled_posts: List[CrawledContentDto]) -> List[CompanyPost]:
             processed_post = CompanyPost(
                 title=crawled.title,
                 summary=summary_result["summary"],
-                thumbnail_url=crawled.thumbnail_url,
+                thumbnail_url=thumbnail_url,
                 field=Field(summary_result["field"]),
                 published_at=crawled.published_at,
                 company=company,
