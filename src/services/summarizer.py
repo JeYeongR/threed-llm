@@ -1,11 +1,16 @@
-from typing import Literal
+from typing import Literal, Dict
 from pydantic import BaseModel, Field
 from langchain_openai import ChatOpenAI
 from langchain.prompts import ChatPromptTemplate
 from langchain.output_parsers import PydanticOutputParser
-from config import OPENAI_API_KEY
+import logging
+
+from src.config import OPENAI_API_KEY
+
+logger = logging.getLogger(__name__)
 
 class SummaryResult(BaseModel):
+    """요약 결과 모델"""
     summary: str = Field(description="500-520자 사이의 요약 내용")
     field: Literal[
         "AI", 
@@ -49,7 +54,7 @@ def get_chat_client():
         openai_api_key=OPENAI_API_KEY
     )
 
-def summarize_content(content: str) -> dict:
+def summarize_content(content: str) -> Dict[str, str]:
     """
     주어진 콘텐츠를 요약하고 분류합니다.
     
@@ -69,10 +74,12 @@ def summarize_content(content: str) -> dict:
     chain = prompt | get_chat_client() | parser
     
     try:
+        logger.info("콘텐츠 요약 시작")
         result = chain.invoke({"content": content})
+        logger.info("콘텐츠 요약 완료")
         return result.dict()
     except Exception as e:
-        print(f"요약 중 오류 발생: {str(e)}")
+        logger.error(f"요약 중 오류 발생: {str(e)}")
         return {
             "summary": "요약을 생성하는 중 오류가 발생했습니다. 나중에 다시 시도해주세요.",
             "field": "기타"

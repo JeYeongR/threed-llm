@@ -1,10 +1,14 @@
 import os
+import logging
 from sshtunnel import SSHTunnelForwarder
 from dotenv import load_dotenv
 
 load_dotenv()
 
+logger = logging.getLogger(__name__)
+
 class DBTunnel:
+    """SSH 터널을 통한 데이터베이스 연결 관리 클래스"""
     _instance = None
     
     def __new__(cls):
@@ -24,18 +28,18 @@ class DBTunnel:
     def start(self):
         """SSH 터널 시작"""
         if self.tunnel is not None and self.tunnel.is_active:
-            print("SSH 터널이 이미 실행 중입니다.")
+            logger.info("SSH 터널이 이미 실행 중입니다.")
             return True
             
         try:
             ec2_public_ip = os.getenv('EC2_PUBLIC_IP')
             ssh_username = 'ubuntu'
-            ssh_pkey = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'threed.pem')
+            ssh_pkey = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'threed.pem')
             
             rds_endpoint = os.getenv('DB_HOST')
             rds_port = int(os.getenv('DB_PORT', '3306'))
             
-            print(f"SSH 터널을 시작합니다: {ec2_public_ip}를 통해 {rds_endpoint}:{rds_port}로")
+            logger.info(f"SSH 터널을 시작합니다: {ec2_public_ip}를 통해 {rds_endpoint}:{rds_port}로")
             
             self.tunnel = SSHTunnelForwarder(
                 (ec2_public_ip, 22),
@@ -46,11 +50,11 @@ class DBTunnel:
             )
             
             self.tunnel.start()
-            print(f"SSH 터널이 시작되었습니다. 로컬 포트: {self.local_bind_port}")
+            logger.info(f"SSH 터널이 시작되었습니다. 로컬 포트: {self.local_bind_port}")
             return True
             
         except Exception as e:
-            print(f"SSH 터널 시작 중 오류 발생: {str(e)}")
+            logger.error(f"SSH 터널 시작 중 오류 발생: {str(e)}")
             if self.tunnel:
                 self.tunnel.stop()
                 self.tunnel = None
@@ -61,7 +65,7 @@ class DBTunnel:
         if self.tunnel is not None:
             self.tunnel.stop()
             self.tunnel = None
-            print("SSH 터널이 중지되었습니다.")
+            logger.info("SSH 터널이 중지되었습니다.")
     
     def get_connection_params(self):
         """데이터베이스 연결 파라미터 반환"""
@@ -77,13 +81,15 @@ class DBTunnel:
         """객체 소멸 시 터널 자동 종료"""
         self.stop()
 
+# 싱글톤 인스턴스 생성
 db_tunnel = DBTunnel()
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
     tunnel = DBTunnel()
     try:
         if tunnel.start():
-            print("연결 파라미터:", tunnel.get_connection_params())
+            logger.info(f"연결 파라미터: {tunnel.get_connection_params()}")
             input("터널이 성공적으로 열렸습니다. 종료하려면 Enter 키를 누르세요...")
     finally:
         tunnel.stop()

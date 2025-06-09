@@ -7,10 +7,13 @@ import requests
 from PIL import Image
 from io import BytesIO
 
-from models import CrawledContentDto
-from config import BLOG_CONFIGS
+from src.models.dto import CrawledContentDto
+from src.config.blog_config import BLOG_CONFIGS
+
+logger = logging.getLogger(__name__)
 
 class BlogCrawler:
+    """블로그 크롤링 클래스"""
     def __init__(self):
         self.session = requests.Session()
         self.session.headers.update({
@@ -23,11 +26,12 @@ class BlogCrawler:
         
         for config in BLOG_CONFIGS:
             try:
+                logger.info(f"{config['blog_url']} 크롤링 시작")
                 posts = self.crawl_blog(config)
                 all_posts.extend(posts)
-                print(f"{config['blog_url']}에서 {len(posts)}개의 포스트를 크롤링했습니다.")
+                logger.info(f"{config['blog_url']}에서 {len(posts)}개의 포스트를 크롤링했습니다.")
             except Exception as e:
-                print(f"{config['blog_url']} 크롤링 중 오류 발생: {str(e)}")
+                logger.error(f"{config['blog_url']} 크롤링 중 오류 발생: {str(e)}")
                 continue
                 
         return all_posts
@@ -49,7 +53,7 @@ class BlogCrawler:
             max_posts: 최대 크롤링할 포스트 수
             source_name: 블로그 소스 이름 (기본값: "네이버")
         """
-        print(f"{source_name} 블로그 크롤링 시작: {blog_url}")
+        logger.info(f"{source_name} 블로그 크롤링 시작: {blog_url}")
         results = []
         
         try:
@@ -84,29 +88,12 @@ class BlogCrawler:
                     except ValueError:
                         published_at = datetime.now()
                     
-                    thumbnail_url = ''
-                    if 'links' in entry:
-                        for link in entry.links:
-                            if link.get('type', '').startswith('image'):
-                                thumbnail_url = link.href
-                                logging.info(f"이미지 링크에서 썸네일 찾음: {thumbnail_url}")
-                                break
-                    
-                    if not thumbnail_url and 'media_thumbnail' in entry:
-                        thumbnail_url = entry.media_thumbnail[0]['url']
-                        logging.info(f"media_thumbnail에서 썸네일 찾음: {thumbnail_url}")
-                    
-                    if not thumbnail_url:
-                        if 'content' in entry and len(entry.content) > 0:
-                            img_match = re.search(r'<img[^>]+src=["\']([^"\'>]+)', entry.content[0].value)
-                            if img_match:
-                                thumbnail_url = img_match.group(1)
-                                logging.info(f"본문에서 이미지 추출: {thumbnail_url}")
+                    thumbnail_url = self._extract_thumbnail(entry)
                     
                     if thumbnail_url:
-                        logging.info(f"포스트 '{title}' 썸네일 URL: {thumbnail_url}")
+                        logger.info(f"포스트 '{title}' 썸네일 URL: {thumbnail_url}")
                     else:
-                        logging.warning(f"포스트 '{title}' 썸네일을 찾을 수 없음")
+                        logger.warning(f"포스트 '{title}' 썸네일을 찾을 수 없음")
                     
                     dto = CrawledContentDto(
                         title=title,
@@ -120,31 +107,50 @@ class BlogCrawler:
                     results.append(dto)
                     
                 except Exception as e:
-                    print(f"포스트 처리 중 오류 발생: {str(e)}")
+                    logger.error(f"포스트 처리 중 오류 발생: {str(e)}")
                     continue
                     
         except Exception as e:
-            print(f"Atom 피드 파싱 중 오류 발생: {str(e)}")
+            logger.error(f"Atom 피드 파싱 중 오류 발생: {str(e)}")
             
         return results
 
     def _crawl_generic_blog(self, blog_url: str, config: Dict[str, Any]) -> List[CrawledContentDto]:
         """일반적인 블로그를 크롤링합니다."""
         # TODO: Playwright를 사용한 일반 블로그 크롤링 구현
+        logger.warning(f"일반 블로그 크롤링은 아직 구현되지 않았습니다: {blog_url}")
         return []
 
     def _extract_thumbnail(self, entry) -> str:
         """엔트리에서 썸네일 URL을 추출합니다."""
+        # 1. media_thumbnail 확인
         if hasattr(entry, 'media_thumbnail') and entry.media_thumbnail:
+            logger.info("media_thumbnail에서 썸네일 찾음")
             return entry.media_thumbnail[0]['url']
-            
+        
+        # 2. 이미지 링크 확인
+        if hasattr(entry, 'links'):
+            for link in entry.links:
+                if link.get('type', '').startswith('image'):
+                    logger.info("이미지 링크에서 썸네일 찾음")
+                    return link.get('href', '')
+        
+        # 3. 본문에서 이미지 추출
         if hasattr(entry, 'content'):
             for content in entry.content:
                 if not hasattr(content, 'value'):
                     continue
                 img_match = re.search(r'<img[^>]+src=[\'"]([^\'"]+)[\'"]', content.value, re.IGNORECASE)
                 if img_match:
+                    logger.info("본문에서 이미지 추출")
                     return img_match.group(1)
+        
+        # 4. summary에서 이미지 추출
+        if hasattr(entry, 'summary'):
+            img_match = re.search(r'<img[^>]+src=[\'"]([^\'"]+)[\'"]', entry.summary, re.IGNORECASE)
+            if img_match:
+                logger.info("요약에서 이미지 추출")
+                return img_match.group(1)
                     
         return ""
 
@@ -171,6 +177,5 @@ class BlogCrawler:
             return img_byte_arr.getvalue()
             
         except Exception as e:
-            print(f"썸네일 처리 중 오류 발생: {str(e)}")
+            logger.error(f"썸네일 처리 중 오류 발생: {str(e)}")
             return None
-

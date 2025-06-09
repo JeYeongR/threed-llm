@@ -1,18 +1,18 @@
 import os
 import boto3
-from botocore.exceptions import ClientError
+import uuid
 import logging
+from botocore.exceptions import ClientError
 from dotenv import load_dotenv
 from io import BytesIO
-import uuid
 
 load_dotenv()
 
 logger = logging.getLogger(__name__)
 
 class S3Uploader:
+    """S3에 이미지를 업로드하는 클래스"""
     def __init__(self):
-        """S3 업로더 초기화"""
         self.aws_access_key = os.getenv('AWS_ACCESS_KEY_ID')
         self.aws_secret_key = os.getenv('AWS_SECRET_ACCESS_KEY')
         self.s3_bucket = os.getenv('S3_BUCKET_NAME')
@@ -40,41 +40,16 @@ class S3Uploader:
             self.s3_client = None
     
     def upload_image(self, image_data, company_name=None, original_filename=None):
-        """
-        이미지를 S3에 업로드하고 URL을 반환합니다.
-        
-        Args:
-            image_data: 이미지 바이트 데이터
-            company_name: 회사 이름 (폴더 구조에 사용)
-            original_filename: 원본 파일 이름 (확장자 추출에 사용)
-        
-        Returns:
-            str: 업로드된 이미지의 URL 또는 실패 시 None
-        """
+        """이미지를 S3에 업로드하고 URL 반환"""
         if self.s3_client is None:
             logger.error("S3 클라이언트가 초기화되지 않았습니다.")
             return None
         
         try:
-            extension = 'jpg'
-            if original_filename and '.' in original_filename:
-                extension = original_filename.split('.')[-1].lower()
+            extension = self._get_file_extension(original_filename)
+            key = self._generate_s3_key(company_name, extension)
             
-            unique_filename = f"{uuid.uuid4()}.{extension}"
-            
-            if company_name:
-                key = f"thumbnails/{company_name}/{unique_filename}"
-            else:
-                key = f"thumbnails/{unique_filename}"
-            
-            self.s3_client.upload_fileobj(
-                BytesIO(image_data),
-                self.s3_bucket,
-                key,
-                ExtraArgs={
-                    'ContentType': f'image/{extension}'
-                }
-            )
+            self._upload_to_s3(image_data, key, extension)
             
             url = f"https://{self.cdn_url}/{key}"
             logger.info(f"이미지가 S3에 성공적으로 업로드되었습니다: {url}")
@@ -86,5 +61,33 @@ class S3Uploader:
         except Exception as e:
             logger.error(f"이미지 업로드 중 예상치 못한 오류 발생: {str(e)}")
             return None
+    
+    def _get_file_extension(self, original_filename):
+        """파일 확장자 추출"""
+        extension = 'jpg'
+        if original_filename and '.' in original_filename:
+            extension = original_filename.split('.')[-1].lower()
+        return extension
+    
+    def _generate_s3_key(self, company_name, extension):
+        """S3 키 생성"""
+        unique_filename = f"{uuid.uuid4()}.{extension}"
+        
+        if company_name:
+            return f"thumbnails/{company_name}/{unique_filename}"
+        else:
+            return f"thumbnails/{unique_filename}"
+    
+    def _upload_to_s3(self, image_data, key, extension):
+        """S3에 파일 업로드"""
+        self.s3_client.upload_fileobj(
+            BytesIO(image_data),
+            self.s3_bucket,
+            key,
+            ExtraArgs={
+                'ContentType': f'image/{extension}'
+            }
+        )
 
+# 싱글톤 인스턴스 생성
 s3_uploader = S3Uploader()
