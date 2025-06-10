@@ -1,35 +1,40 @@
 import logging
-from typing import Dict, Literal
+from typing import Dict
 
 from langchain.output_parsers import PydanticOutputParser
 from langchain.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
 
-from src.config import OPENAI_API_KEY
+from src.config.api_config import (
+    OPENAI_API_KEY,
+    OPENAI_MODEL_NAME,
+    OPENAI_MODEL_TEMPERATURE,
+)
+from src.services.summarizer_constants import SummaryField
 
 logger = logging.getLogger(__name__)
 
 
 class SummaryResult(BaseModel):
-
     summary: str = Field(description="500-520자 사이의 요약 내용")
-    field: Literal[
-        "AI", "Backend", "Frontend", "DevOps", "Mobile", "DB", "Collab Tool", "기타"
-    ] = Field(description="분류 카테고리")
+    field: SummaryField = Field(description="분류 카테고리")
 
 
-SYSTEM_PROMPT = """
+# Dynamically generate the list of fields for the prompt
+FIELD_OPTIONS = ", ".join([field.value for field in SummaryField])
+
+SYSTEM_PROMPT = f"""
 당신은 한국어 요약을 생성하는 AI입니다.
 
 다음 형식의 JSON만 반환하세요:
-{{
+{{{{
   "summary": "요약 내용",
   "field": "분류"
-}}
+}}}}
 
 분류 종류:
-AI, Backend, Frontend, DevOps, Mobile, DB, Collab Tool, 기타
+{FIELD_OPTIONS}
 
 분류 기준:
 - AI: 인공지능, 머신러닝, LLM, ChatGPT, 생성형 AI 관련 내용
@@ -45,7 +50,9 @@ AI, Backend, Frontend, DevOps, Mobile, DB, Collab Tool, 기타
 
 def get_chat_client():
     return ChatOpenAI(
-        model_name="gpt-4o-mini", temperature=0.3, openai_api_key=OPENAI_API_KEY
+        model_name=OPENAI_MODEL_NAME,
+        temperature=OPENAI_MODEL_TEMPERATURE,
+        openai_api_key=OPENAI_API_KEY,
     )
 
 
@@ -67,5 +74,5 @@ def summarize_content(content: str) -> Dict[str, str]:
         logger.error(f"요약 중 오류 발생: {str(e)}")
         return {
             "summary": "요약을 생성하는 중 오류가 발생했습니다. 나중에 다시 시도해주세요.",
-            "field": "기타",
+            "field": SummaryField.ETC.value,
         }

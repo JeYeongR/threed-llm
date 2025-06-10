@@ -1,20 +1,11 @@
 import logging
 import re
-import time
-from io import BytesIO
 from typing import Optional
 
 import requests
 from PIL import Image
 
-from src.services.crawler_constants import (
-    DEFAULT_HEADERS,
-    MAX_RETRIES,
-    REQUEST_TIMEOUT,
-    THUMBNAIL_FORMAT,
-    THUMBNAIL_QUALITY,
-    THUMBNAIL_SIZE,
-)
+from src.services.crawler_constants import DEFAULT_HEADERS, REQUEST_TIMEOUT
 
 logger = logging.getLogger(__name__)
 
@@ -35,48 +26,6 @@ def extract_image_url_from_html(html: str) -> str:
     if img_match:
         return img_match.group(1)
     return ""
-
-
-def process_thumbnail_image(
-    session: requests.Session, image_url: str
-) -> Optional[bytes]:
-    """이미지 URL에서 썸네일 이미지를 처리합니다.
-
-    Args:
-        session: 요청에 사용할 세션 객체
-        image_url: 이미지 URL
-
-    Returns:
-        처리된 썸네일 이미지 바이트 데이터 또는 None
-    """
-    if not image_url:
-        return None
-
-    for attempt in range(MAX_RETRIES):
-        try:
-            response = session.get(
-                image_url, headers=DEFAULT_HEADERS, timeout=REQUEST_TIMEOUT
-            )
-            response.raise_for_status()
-
-            with BytesIO(response.content) as img_data:
-                img = Image.open(img_data)
-                img = img.convert("RGB")
-
-                img.thumbnail(THUMBNAIL_SIZE)
-
-                output = BytesIO()
-                img.save(output, format=THUMBNAIL_FORMAT, quality=THUMBNAIL_QUALITY)
-                return output.getvalue()
-
-        except Exception as e:
-            logger.error(
-                f"썸네일 처리 중 오류 (시도 {attempt+1}/{MAX_RETRIES}): {str(e)}"
-            )
-            if attempt < MAX_RETRIES - 1:
-                time.sleep(1)
-
-    return None
 
 
 def extract_thumbnail_from_webpage(
