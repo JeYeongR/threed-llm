@@ -13,7 +13,7 @@ BLOG_CONFIGS = [
     },
     {
         "blog_url": "https://politepol.com/fd/XiV8r39FL4YI",
-        "name": "데보션 블로그",
+        "name": "데보션 기술 블로그",
         "company": "DEVOCEAN",
         "max_posts": 5,
     },
@@ -24,8 +24,8 @@ BLOG_CONFIGS = [
         "max_posts": 5,
     },
     {
-        "blog_url": "https://engineering.linecorp.com/ko/blog/",
-        "name": "라인 엔지니어링 블로그",
+        "blog_url": "https://techblog.lycorp.co.jp/ko/feed/index.xml",
+        "name": "라인 기술 블로그",
         "company": "LINE",
         "max_posts": 5,
     },

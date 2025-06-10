@@ -1,9 +1,8 @@
 import logging
-import re
 from typing import Optional
 
 import requests
-from PIL import Image
+from bs4 import BeautifulSoup
 
 from src.services.crawler_constants import DEFAULT_HEADERS, REQUEST_TIMEOUT
 
@@ -22,67 +21,54 @@ def extract_image_url_from_html(html: str) -> str:
     if not html:
         return ""
 
-    img_match = re.search(r'<img[^>]+src=[\'"]([^\'"]+)[\'"]', html, re.IGNORECASE)
-    if img_match:
-        return img_match.group(1)
+    soup = BeautifulSoup(html, "lxml")
+    img_tag = soup.find("img")
+    if img_tag and img_tag.get("src"):
+        return img_tag["src"]
     return ""
 
 
 def extract_thumbnail_from_webpage(
     session: requests.Session, url: str
 ) -> Optional[str]:
-    """웹 페이지에서 썸네일 이미지 URL을 추출합니다.
+    """웹페이지에서 썸네일 URL을 추출합니다.
 
     Args:
-        session: 요청에 사용할 세션 객체
-        url: 웹 페이지 URL
+        session: requests 세션 객체
+        url: 웹페이지 URL
 
     Returns:
         추출된 썸네일 URL 또는 None
     """
-    if not url:
+    try:
+        response = session.get(url, timeout=REQUEST_TIMEOUT)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.content, "lxml")
+
+        # 1. Open Graph (og:image) 태그 확인 (가장 일반적)
+        og_image = soup.find("meta", property="og:image")
+        if og_image and og_image.get("content"):
+            return og_image["content"]
+
+        # 2. Twitter Card (twitter:image) 태그 확인
+        twitter_image = soup.find("meta", attrs={"name": "twitter:image"})
+        if twitter_image and twitter_image.get("content"):
+            return twitter_image["content"]
+
+        # 3. 대표 이미지 링크(rel="image_src") 확인
+        image_src_link = soup.find("link", rel="image_src")
+        if image_src_link and image_src_link.get("href"):
+            return image_src_link["href"]
+
+        logger.warning(f"웹페이지 {url}에서 썸네일 메타 태그를 찾을 수 없습니다.")
         return None
 
-    try:
-        logger.info(f"원본 링크에서 썸네일 추출 시도: {url}")
-        response = session.get(url, headers=DEFAULT_HEADERS, timeout=REQUEST_TIMEOUT)
-        response.raise_for_status()
-
-        og_image_match = re.search(
-            r'<meta\s+property=[\'"]og:image[\'"]\s+content=[\'"]([^\'"]+)[\'"]',
-            response.text,
-            re.IGNORECASE,
-        )
-
-        if og_image_match:
-            thumbnail_url = og_image_match.group(1)
-            logger.info(f"Open Graph 태그에서 썸네일 찾음: {thumbnail_url}")
-            return normalize_thumbnail_url(thumbnail_url, url)
-
-        img_match = re.search(
-            r'<div\s+class=[\'"]thumbnail[\'"][^>]*>\s*<img[^>]+src=[\'"]([^\'"]+)[\'"]',
-            response.text,
-            re.IGNORECASE,
-        )
-        if img_match:
-            thumbnail_url = img_match.group(1)
-            logger.info(f"썸네일 클래스에서 이미지 찾음: {thumbnail_url}")
-            return normalize_thumbnail_url(thumbnail_url, url)
-
-        img_match = re.search(
-            r'<img[^>]+src=[\'"]([^\'"]+)[\'"]',
-            response.text,
-            re.IGNORECASE,
-        )
-        if img_match:
-            thumbnail_url = img_match.group(1)
-            logger.info(f"첫 번째 이미지 태그에서 썸네일 찾음: {thumbnail_url}")
-            return normalize_thumbnail_url(thumbnail_url, url)
-
+    except requests.RequestException as e:
+        logger.error(f"웹페이지 {url}에서 썸네일 추출 중 오류 발생: {e}")
+        return None
     except Exception as e:
-        logger.error(f"원본 링크에서 썸네일 추출 중 오류: {str(e)}")
-
-    return None
+        logger.error(f"썸네일 추출 중 예기치 않은 오류 발생 ({url}): {e}")
+        return None
 
 
 def normalize_thumbnail_url(thumbnail_url: str, base_url: str) -> str:
@@ -108,18 +94,21 @@ def normalize_thumbnail_url(thumbnail_url: str, base_url: str) -> str:
         return base_url.rstrip("/") + "/" + thumbnail_url
 
 
-def extract_text_from_html(html: str) -> str:
-    """HTML에서 텍스트만 추출합니다.
+def extract_text_from_html(html_content: str) -> str:
+    """HTML에서 텍스트를 추출합니다.
 
     Args:
-        html: 추출할 HTML 문자열
+        html_content: HTML 콘텐츠 문자열
 
     Returns:
         추출된 텍스트
     """
-    if not html:
+    if not html_content:
         return ""
-
-    text = re.sub(r"<[^>]+>", " ", html)
-    text = re.sub(r"\s+", " ", text).strip()
-    return text
+    soup = BeautifulSoup(html_content, "lxml")
+    for script_or_style in soup(["script", "style"]):
+        script_or_style.decompose()
+    text = soup.get_text()
+    lines = (line.strip() for line in text.splitlines())
+    chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
+    return "\n".join(chunk for chunk in chunks if chunk)

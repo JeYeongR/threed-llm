@@ -19,4 +19,5 @@ class BlogType(Enum):
     KAKAO = "kakao"
     DEVOCEAN = "devocean"
     TOSS = "toss"
+    LINE = "line"
     GENERIC = "generic"
