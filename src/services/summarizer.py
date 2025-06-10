@@ -6,11 +6,7 @@ from langchain.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
 
-from src.config.api_config import (
-    OPENAI_API_KEY,
-    OPENAI_MODEL_NAME,
-    OPENAI_MODEL_TEMPERATURE,
-)
+from src.config.api_config import OPENAI_API_KEY, OPENAI_MODEL_NAME, OPENAI_TEMPERATURE
 from src.services.summarizer_constants import SummaryField
 
 logger = logging.getLogger(__name__)
@@ -21,7 +17,6 @@ class SummaryResult(BaseModel):
     field: SummaryField = Field(description="분류 카테고리")
 
 
-# Dynamically generate the list of fields for the prompt
 FIELD_OPTIONS = ", ".join([field.value for field in SummaryField])
 
 SYSTEM_PROMPT = f"""
@@ -51,7 +46,7 @@ SYSTEM_PROMPT = f"""
 def get_chat_client():
     return ChatOpenAI(
         model_name=OPENAI_MODEL_NAME,
-        temperature=OPENAI_MODEL_TEMPERATURE,
+        temperature=OPENAI_TEMPERATURE,
         openai_api_key=OPENAI_API_KEY,
     )
 

@@ -1,12 +1,13 @@
 import logging
 import re
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Union
 
 import feedparser
 import requests
 
 from src.models.dto import CrawledContentDto
+from src.models.enums import Company
 from src.services.crawler_constants import DEFAULT_HEADERS, BlogType
 from src.services.crawler_utils import (
     extract_text_from_html,
@@ -18,12 +19,25 @@ logger = logging.getLogger(__name__)
 
 
 class BlogCrawler:
-    """블로그 크롤링 클래스"""
+    """블로그 크롤링을 담당하는 클래스"""
 
     def __init__(self):
         """크롤러 초기화"""
         self.session = requests.Session()
         self.session.headers.update(DEFAULT_HEADERS)
+        self.parsers = {
+            BlogType.NAVER: self._parse_naver_blog,
+            BlogType.KAKAO: self._parse_kakao_blog,
+            BlogType.DEVOCEAN: self._parse_devocean_blog,
+            BlogType.TOSS: self._parse_toss_blog,
+            BlogType.GENERIC: self._parse_generic_blog,
+        }
+        self.blog_meta = {
+            BlogType.NAVER: {"source_name": "네이버 D2", "company": "NAVER"},
+            BlogType.KAKAO: {"source_name": "카카오 기술 블로그", "company": "KAKAO"},
+            BlogType.DEVOCEAN: {"source_name": "데보션 블로그", "company": "DEVOCEAN"},
+            BlogType.TOSS: {"source_name": "토스 기술 블로그", "company": "TOSS"},
+        }
 
     def crawl_all_sources(
         self, configs: List[Dict[str, Any]], max_posts: int
@@ -32,10 +46,7 @@ class BlogCrawler:
         all_posts = []
         for config in configs:
             try:
-                # Pass max_posts to crawl_blog if it's not set in the individual config
-                if "max_posts" not in config:
-                    config["max_posts"] = max_posts
-                posts = self.crawl_blog(config)
+                posts = self.crawl_blog(config, max_posts)
                 all_posts.extend(posts)
             except Exception as e:
                 logger.error(
@@ -43,63 +54,72 @@ class BlogCrawler:
                 )
         return all_posts
 
-    def crawl_blog(self, config: Dict[str, Any]) -> List[CrawledContentDto]:
-        """개별 블로그에서 콘텐츠를 크롤링합니다.
-
-        Args:
-            config: 블로그 설정 정보
-
-        Returns:
-            크롤링된 블로그 콘텐츠 목록
-        """
-        blog_url = config.get("blog_url", "")
+    def crawl_blog(
+        self, config: Dict[str, Any], max_posts: int
+    ) -> List[CrawledContentDto]:
+        """개별 블로그를 크롤링하고 처리합니다."""
+        blog_url = config.get("blog_url")
         if not blog_url:
-            logger.error("블로그 URL이 제공되지 않았습니다.")
+            logger.error("URL이 설정되지 않은 블로그 설정이 있습니다.")
             return []
 
         blog_type = self._detect_blog_type(blog_url, config)
-        max_posts = config.get("max_posts", 5)
-        source_name = config.get("name", "")
+        feed = feedparser.parse(blog_url)
 
-        source_name_cfg = config.get("name", "")
-        company_name_cfg = config.get("company", "")
+        source_name_cfg = config.get("name")
+        company_cfg = config.get("company")
 
-        effective_source_name = source_name_cfg
-        effective_company_name = company_name_cfg
-
-        if blog_type == BlogType.NAVER:
-            effective_source_name = source_name_cfg or "네이버 D2"
-            effective_company_name = company_name_cfg or "NAVER"
-        elif blog_type == BlogType.KAKAO:
-            effective_source_name = source_name_cfg or "카카오 기술 블로그"
-            effective_company_name = company_name_cfg or "KAKAO"
-        elif blog_type == BlogType.DEVOCEAN:
-            effective_source_name = source_name_cfg or "데보션 블로그"
-            effective_company_name = company_name_cfg or "DEVOCEAN"
-        elif blog_type == BlogType.TOSS:
-            effective_source_name = source_name_cfg or "토스 기술 블로그"
-            effective_company_name = company_name_cfg or "TOSS"
-        else:  # BlogType.GENERIC or any other
+        meta = self.blog_meta.get(blog_type)
+        if meta:
+            effective_source_name = source_name_cfg or meta["source_name"]
+            effective_company = (
+                company_cfg if company_cfg is not None else Company[meta["company"]]
+            )
+        else:
             effective_source_name = source_name_cfg or f"Unknown Blog ({blog_url})"
-            effective_company_name = company_name_cfg or "Unknown Company"
+            effective_company = company_cfg if company_cfg is not None else Company.ETC
+
+        parser = self.parsers.get(blog_type, self._parse_generic_blog)
+        entries = parser(feed, max_posts)
 
         return self._process_feed(
-            blog_url, max_posts, effective_source_name, effective_company_name
+            blog_url, effective_source_name, effective_company, entries
         )
+
+    def _parse_generic_blog(self, feed, max_posts: int) -> List[Dict[str, Any]]:
+        """제네릭 블로그 피드를 파싱합니다."""
+        return feed.entries[:max_posts]
+
+    def _parse_naver_blog(self, feed, max_posts: int) -> List[Dict[str, Any]]:
+        """네이버 블로그 피드를 파싱합니다."""
+        return self._parse_generic_blog(feed, max_posts)
+
+    def _parse_kakao_blog(self, feed, max_posts: int) -> List[Dict[str, Any]]:
+        """카카오 블로그 피드를 파싱합니다."""
+        return self._parse_generic_blog(feed, max_posts)
+
+    def _parse_devocean_blog(self, feed, max_posts: int) -> List[Dict[str, Any]]:
+        """데보션 블로그 피드를 파싱합니다."""
+        # 현재는 제네릭 파서와 동일
+        return self._parse_generic_blog(feed, max_posts)
+
+    def _parse_toss_blog(self, feed, max_posts: int) -> List[Dict[str, Any]]:
+        """토스 블로그 피드를 파싱합니다."""
+        # 현재는 제네릭 파서와 동일
+        return self._parse_generic_blog(feed, max_posts)
 
     def _process_feed(
         self,
         blog_url: str,
-        max_posts: int,
         source_name: str,
-        company_name: str,
+        company_name: Union[str, Company],
+        entries: List[Dict[str, Any]],
     ) -> List[CrawledContentDto]:
-        """공통 피드 처리 로직. RSS/Atom 피드를 파싱하여 DTO 리스트를 반환합니다."""
+        """피드 항목을 CrawledContentDto 객체로 변환합니다."""
         logger.info(f"{source_name} 블로그 크롤링 시작: {blog_url}")
         results = []
         try:
-            feed = feedparser.parse(blog_url)
-            for entry in feed.entries[:max_posts]:
+            for entry in entries:
                 title = entry.get("title", "제목 없음")
                 link = self._extract_link_from_entry(entry)
                 if not link:
@@ -136,6 +156,36 @@ class BlogCrawler:
 
                 normalized_thumbnail_url = normalize_thumbnail_url(thumbnail_url, link)
 
+                company_enum_member: Company
+                if isinstance(company_name, Company):
+                    company_enum_member = company_name
+                elif isinstance(company_name, str):
+                    try:
+                        # Try to match by enum key (e.g., "NAVER", "KAKAO")
+                        company_enum_member = Company[company_name.upper()]
+                    except KeyError:
+                        try:
+                            # Try to match by enum value (e.g., "네이버", "카카오")
+                            company_enum_member = Company(company_name)
+                        except ValueError:
+                            logger.warning(
+                                f"문자열 회사 이름 '{company_name}'을(를) Company Enum으로 변환할 수 없습니다. "
+                                f"'{source_name}' 블로그({blog_url})에 대해 Company.ETC로 설정합니다."
+                            )
+                            company_enum_member = Company.ETC
+                    except Exception as e_str_conv:
+                        logger.error(
+                            f"문자열 회사 이름 '{company_name}' 변환 중 예상치 못한 오류 발생: {e_str_conv}. "
+                            f"'{source_name}' 블로그({blog_url})에 대해 Company.ETC로 설정합니다."
+                        )
+                        company_enum_member = Company.ETC
+                else:
+                    logger.error(
+                        f"회사 이름에 예상치 못한 타입({type(company_name)})이 전달되었습니다: '{company_name}'. "
+                        f"'{source_name}' 블로그({blog_url})에 대해 Company.ETC로 설정합니다."
+                    )
+                    company_enum_member = Company.ETC
+
                 post_data = CrawledContentDto(
                     title=title,
                     content=content_text,
@@ -143,7 +193,7 @@ class BlogCrawler:
                     source_name=source_name,
                     thumbnail_url=normalized_thumbnail_url,
                     published_at=published_date,
-                    company=company_name,
+                    company=company_enum_member,
                 )
                 results.append(post_data)
                 logger.debug(f"{source_name} 포스트 크롤링 완료: {title}")
