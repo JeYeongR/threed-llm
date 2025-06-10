@@ -14,4 +14,5 @@ REQUEST_TIMEOUT = 15
 BLOG_TYPE_NAVER = "naver"
 BLOG_TYPE_KAKAO = "kakao"
 BLOG_TYPE_DEVOCEAN = "devocean"
+BLOG_TYPE_TOSS = "toss"
 BLOG_TYPE_GENERIC = "generic"

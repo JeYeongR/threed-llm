@@ -18,15 +18,15 @@ BLOG_CONFIGS = [
         "max_posts": 5,
     },
     {
-        "blog_url": "https://engineering.linecorp.com/ko/blog/",
-        "name": "라인 엔지니어링 블로그",
-        "company": "LINE",
+        "blog_url": "https://toss.tech/atom.xml",
+        "name": "토스 기술 블로그",
+        "company": "TOSS",
         "max_posts": 5,
     },
     {
-        "blog_url": "https://toss.tech/",
-        "name": "토스 기술 블로그",
-        "company": "TOSS",
+        "blog_url": "https://engineering.linecorp.com/ko/blog/",
+        "name": "라인 엔지니어링 블로그",
+        "company": "LINE",
         "max_posts": 5,
     },
 ]

@@ -8,6 +8,7 @@ import requests
 
 from src.config.blog_config import BLOG_CONFIGS
 from src.models.dto import CrawledContentDto
+from src.services.crawler_constants import BLOG_TYPE_TOSS  # 추가
 from src.services.crawler_constants import (
     BLOG_TYPE_DEVOCEAN,
     BLOG_TYPE_GENERIC,
@@ -85,6 +86,14 @@ class BlogCrawler:
             return self._crawl_devocean_blog(
                 blog_url, max_posts, source_name or "데보션 블로그"
             )
+        elif blog_type == BLOG_TYPE_TOSS:
+            company_official_name = config.get("company", "")
+            return self._crawl_toss_blog(
+                blog_url,
+                max_posts,
+                source_name or "토스 기술 블로그",
+                company_official_name,
+            )
         else:
             return self._crawl_generic_blog(blog_url, config)
 
@@ -104,6 +113,8 @@ class BlogCrawler:
             return BLOG_TYPE_KAKAO
         elif "politepol.com" in blog_url and "DEVOCEAN" in config.get("company", ""):
             return BLOG_TYPE_DEVOCEAN
+        elif "toss.tech" in blog_url:
+            return BLOG_TYPE_TOSS
         else:
             return BLOG_TYPE_GENERIC
 
@@ -395,6 +406,57 @@ class BlogCrawler:
         except Exception as e:
             logger.error(f"RSS 피드 파싱 중 오류 발생: {str(e)}")
 
+        return results
+
+    def _crawl_toss_blog(
+        self,
+        blog_url: str,
+        max_posts: int,
+        source_name: str = "토스 기술 블로그",
+        company_official_name: str = "",
+    ) -> List[CrawledContentDto]:
+        """토스 기술 블로그를 크롤링합니다. Atom 피드 형식을 파싱합니다.
+
+        Args:
+            blog_url: 크롤링할 블로그 URL
+            max_posts: 최대 크롤링할 포스트 수
+            source_name: 블로그 소스 이름 (기본값: "토스 기술 블로그")
+
+        Returns:
+            크롤링된 블로그 포스트 목록
+        """
+        logger.info(f"{source_name} 블로그 크롤링 시작: {blog_url}")
+        results = []
+        try:
+            feed = feedparser.parse(blog_url)
+            for entry in feed.entries[:max_posts]:
+                title = entry.get("title", "")
+                link = self._extract_link_from_entry(entry)
+                content = self._extract_content_from_entry(entry)
+                published_date = self._extract_date_from_entry(entry)
+                thumbnail_url = self._extract_thumbnail(entry)
+
+                normalized_thumbnail_url = normalize_thumbnail_url(thumbnail_url, link)
+                thumbnail_bytes = self.process_thumbnail(normalized_thumbnail_url)
+
+                post_data = CrawledContentDto(
+                    title=title,
+                    content=content,
+                    url=link,
+                    source_name=source_name,
+                    thumbnail_url=normalized_thumbnail_url,
+                    published_at=published_date,
+                    company=company_official_name,
+                )
+                results.append(post_data)
+                logger.debug(f"{source_name} 포스트 크롤링 완료: {title}")
+
+        except requests.exceptions.RequestException as e:
+            logger.error(f"{source_name} 블로그 요청 중 오류 발생: {e}")
+        except Exception as e:
+            logger.error(f"{source_name} 블로그 파싱 중 오류 발생: {e}")
+
+        logger.info(f"{source_name} 블로그 크롤링 완료, {len(results)}개 포스트 수집")
         return results
 
     def _crawl_generic_blog(

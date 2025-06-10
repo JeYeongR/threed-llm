@@ -17,7 +17,7 @@ class Company(str, Enum):
 
     NAVER = "네이버"
     KAKAO = "카카오"
-    LINE = "라인"
+    DEVOCEAN = "데보션"
     TOSS = "토스"
-    DEVOCEAN = "DEVOCEAN"
+    LINE = "라인"
     ETC = "기타"
