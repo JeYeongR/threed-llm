@@ -20,4 +20,5 @@ class BlogType(Enum):
     DEVOCEAN = "devocean"
     TOSS = "toss"
     LINE = "line"
+    MY_REAL_TRIP = "myrealtrip"
     GENERIC = "generic"

@@ -48,15 +48,33 @@ def setup_parser():
         help="크롤링할 회사 선택 (기본값: ALL)",
     )
 
+    parser.add_argument(
+        "--clear",
+        action="store_true",
+        help="지정된 회사의 모든 포스트를 크롤링 전에 데이터베이스에서 삭제합니다. 'ALL' 회사에는 적용되지 않습니다.",
+    )
     return parser
 
 
 def run_crawl_and_process(args: argparse.Namespace):
     """Crawl, process, and save posts."""
     from src.config.blog_config import BLOG_CONFIGS
-    from src.core.db_handler import save_to_rds
+    from src.core.db_handler import delete_posts_by_company, save_to_rds
     from src.core.post_processor import process_posts
     from src.services.crawler import BlogCrawler
+
+    if args.clear:
+        if args.company == "ALL":
+            logger.error(
+                "'ALL' 회사에 대해 --clear 옵션을 사용할 수 없습니다. 특정 회사를 지정해주세요."
+            )
+            return 1
+        company_to_clear = args.company
+        logger.info(
+            f"{company_to_clear} 회사의 모든 포스트를 데이터베이스에서 삭제합니다..."
+        )
+        delete_posts_by_company(company_to_clear)
+        logger.info(f"{company_to_clear} 회사의 포스트 삭제 완료.")
 
     try:
         if args.company == "ALL":
@@ -65,7 +83,7 @@ def run_crawl_and_process(args: argparse.Namespace):
             target_configs = [
                 config
                 for config in BLOG_CONFIGS
-                if config.get("company") == args.company
+                if config.get("company", "").upper() == args.company
             ]
 
         if not target_configs:

@@ -26,26 +26,6 @@ def save_to_rds(posts: List[CompanyPost]) -> Tuple[int, int]:
     try:
         for post in posts:
             try:
-                try:
-                    url_to_check = post.url
-                    if isinstance(url_to_check, dict) and "href" in url_to_check:
-                        url_to_check = url_to_check["href"]
-
-                    logger.debug(f"URL 체크: {url_to_check}")
-                    exists = (
-                        db.query(DBCompanyPost)
-                        .filter(DBCompanyPost.source_url == url_to_check)
-                        .first()
-                    )
-                    if exists:
-                        logger.info(f"이미 존재하는 포스트: {post.title}")
-                        error_count += 1
-                        continue
-                except Exception as e:
-                    logger.error(f"URL 체크 오류: {str(e)}")
-                    error_count += 1
-                    continue
-
                 url_to_save = post.url
                 if isinstance(url_to_save, dict) and "href" in url_to_save:
                     url_to_save = url_to_save["href"]
@@ -88,3 +68,58 @@ def save_to_rds(posts: List[CompanyPost]) -> Tuple[int, int]:
             pass
 
     return saved_count, error_count
+
+
+def delete_posts_by_company(company_name: str) -> int:
+    """
+    Deletes all posts for a given company from the database.
+    Returns the number of deleted posts.
+    """
+    deleted_count = 0
+    init_db()  # 데이터베이스 초기화 보장
+    # get_db()를 통해 세션을 얻을 때 이미 초기화가 보장된다면 중복 호출은 불필요.
+
+    db_gen = get_db()
+    db = next(db_gen, None)
+
+    if db is None:
+        logger.error(
+            "데이터베이스 세션을 가져올 수 없습니다. 삭제 작업을 진행할 수 없습니다."
+        )
+        return 0
+
+    try:
+        logger.info(f"{company_name} 회사의 포스트를 삭제합니다...")
+        # DBCompanyPost.company 필드가 BlogType enum의 name (문자열)을 저장한다고 가정합니다.
+        posts_to_delete = (
+            db.query(DBCompanyPost).filter(DBCompanyPost.company == company_name).all()
+        )
+
+        if not posts_to_delete:
+            logger.info(
+                f"{company_name} 회사에 해당하는 포스트가 데이터베이스에 없습니다."
+            )
+            return 0
+
+        num_to_delete = len(posts_to_delete)
+
+        for post in posts_to_delete:
+            db.delete(post)
+
+        db.commit()
+        deleted_count = num_to_delete
+        logger.info(
+            f"{company_name} 회사 포스트 {deleted_count}개가 성공적으로 삭제되었습니다."
+        )
+
+    except Exception as e:
+        db.rollback()
+        logger.error(f"{company_name} 회사 포스트 삭제 중 오류 발생: {str(e)}")
+        # deleted_count는 이미 0으로 초기화되어 있으므로 실패 시 0 반환
+    finally:
+        try:
+            next(db_gen)  # Close session
+        except StopIteration:
+            pass
+
+    return deleted_count

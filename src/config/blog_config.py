@@ -24,6 +24,12 @@ BLOG_CONFIGS = [
         "max_posts": 5,
     },
     {
+        "blog_url": "https://medium.com/feed/myrealtrip-product",
+        "name": "마이리얼트립 기술 블로그",
+        "company": "MY_REAL_TRIP",
+        "max_posts": 5,
+    },
+    {
         "blog_url": "https://techblog.lycorp.co.jp/ko/feed/index.xml",
         "name": "라인 기술 블로그",
         "company": "LINE",

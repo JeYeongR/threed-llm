@@ -1,5 +1,6 @@
 import logging
 from typing import List
+from urllib.parse import unquote, urlparse, urlunparse
 
 import requests
 
@@ -36,6 +37,26 @@ def process_posts(crawled_posts: List[CrawledContentDto]) -> List[CompanyPost]:
             logger.info(f"  - 썸네일 처리 중...")
             thumbnail_url = _process_thumbnail(crawled.thumbnail_url, company_name)
 
+            current_post_raw_url = crawled.url
+            if (
+                isinstance(current_post_raw_url, dict)
+                and "href" in current_post_raw_url
+            ):
+                current_post_raw_url = current_post_raw_url["href"]
+
+            if not isinstance(current_post_raw_url, str):
+                logger.error(
+                    f"URL for DTO is not a string after dict check: {type(current_post_raw_url)}, value: {current_post_raw_url}. Skipping post."
+                )
+                continue
+
+            normalized_url_for_dto = _normalize_url(current_post_raw_url)
+            if not normalized_url_for_dto:
+                logger.error(
+                    f"URL normalization resulted in empty string for {current_post_raw_url}. Skipping post."
+                )
+                continue
+
             processed_post = CompanyPost(
                 title=crawled.title,
                 summary=summary_result["summary"],
@@ -43,7 +64,7 @@ def process_posts(crawled_posts: List[CrawledContentDto]) -> List[CompanyPost]:
                 field=Field(summary_result["field"]),
                 published_at=crawled.published_at,
                 company=company,
-                url=crawled.url,
+                url=normalized_url_for_dto,  # 정규화된 URL 저장
             )
 
             processed_posts.append(processed_post)
@@ -84,17 +105,53 @@ def _is_duplicate_post(db_session, crawled):
     if not db_session or not db_session[0]:
         return False
 
-    url_to_check = crawled.url
-    if isinstance(url_to_check, dict) and "href" in url_to_check:
-        url_to_check = url_to_check["href"]
+    raw_url = crawled.url
+    # feedparser가 URL을 dict 형태로 반환하는 경우 처리
+    if isinstance(raw_url, dict) and "href" in raw_url:
+        raw_url = raw_url["href"]
 
-    return (
+    normalized_url = _normalize_url(raw_url)  # 최상위 레벨의 _normalize_url 호출
+    logger.info(f"  - 중복 확인 (정규화된 URL): {normalized_url}")
+
+    exists = (
         db_session[0]
         .query(DBCompanyPost)
-        .filter(DBCompanyPost.source_url == url_to_check)
+        .filter(DBCompanyPost.source_url == normalized_url)
         .first()
-        is not None
     )
+    return exists is not None
+
+
+def _normalize_url(url: str) -> str:
+    """URL에서 쿼리 파라미터, 프래그먼트, 불필요한 경로 요소를 제거하여 정규화합니다."""
+    # feedparser가 URL을 dict 형태로 반환하는 경우 처리 (방어적 코딩)
+    if isinstance(url, dict) and "href" in url:
+        url = url["href"]
+
+    if not isinstance(url, str):
+        # logger.warning(f"정규화할 수 없는 URL 타입: {type(url)}, 값: {url}")
+        # URL이 문자열이 아니면, 문자열로 변환 시도 또는 원본 반환 (혹은 오류 발생)
+        # 여기서는 일단 문자열로 변환 시도 후 진행
+        try:
+            url = str(url)
+        except Exception:
+            # logger.error(f"URL을 문자열로 변환 실패: {url}")
+            return url  # 변환 실패 시 원본 반환
+
+    parsed = urlparse(url)
+    # 경로 디코딩 및 정리
+    path = unquote(parsed.path)
+    path = path.lower()  # 경로를 소문자로 변환
+    path = path.rstrip("/")
+
+    # 경로(path)에 '?'나 '#'이 잘못 포함된 경우 명시적으로 제거
+    if "?" in path:
+        path = path.split("?", 1)[0]
+    if "#" in path:
+        path = path.split("#", 1)[0]
+
+    # params, query, fragment는 비워두고 재구성
+    return urlunparse((parsed.scheme, parsed.netloc, path, "", "", ""))
 
 
 def _get_company_name(source_name):
