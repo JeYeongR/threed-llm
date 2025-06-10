@@ -45,17 +45,14 @@ def extract_thumbnail_from_webpage(
         response.raise_for_status()
         soup = BeautifulSoup(response.content, "lxml")
 
-        # 1. Open Graph (og:image) 태그 확인 (가장 일반적)
         og_image = soup.find("meta", property="og:image")
         if og_image and og_image.get("content"):
             return og_image["content"]
 
-        # 2. Twitter Card (twitter:image) 태그 확인
         twitter_image = soup.find("meta", attrs={"name": "twitter:image"})
         if twitter_image and twitter_image.get("content"):
             return twitter_image["content"]
 
-        # 3. 대표 이미지 링크(rel="image_src") 확인
         image_src_link = soup.find("link", rel="image_src")
         if image_src_link and image_src_link.get("href"):
             return image_src_link["href"]
