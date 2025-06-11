@@ -1,10 +1,3 @@
-"""
-애플리케이션의 여러 단계에서 사용되는 데이터 전송 객체(DTO)를 정의합니다.
-
-이 DTO들은 크롤링된 콘텐츠, LLM 응답, 그리고 데이터베이스에 저장될 최종 게시물 형태의
-데이터 구조를 나타냅니다.
-"""
-
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional

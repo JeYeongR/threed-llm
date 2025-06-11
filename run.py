@@ -1,7 +1,7 @@
 import argparse
 import logging
 import sys
-from typing import Any, Callable
+from typing import Any, Callable, List, Tuple
 
 from dotenv import load_dotenv
 
@@ -27,10 +27,10 @@ def setup_parser() -> argparse.ArgumentParser:
 
     parser.add_argument(
         "mode",
-        nargs='?',
+        nargs="?",
         default="crawl",
-        choices=["crawl", "crawl-only", "delete-only"],
-        help="실행 모드를 선택합니다 (기본값: 'crawl'). 'crawl'(크롤링, 처리, 저장), 'crawl-only'(크롤링만), 'delete-only'(삭제만)",
+        choices=["crawl", "crawl-only"],
+        help="실행 모드를 선택합니다 (기본값: 'crawl'). 'crawl'(크롤링, 처리, 저장), 'crawl-only'(크롤링만)",
     )
     parser.add_argument(
         "--max-posts",
@@ -46,50 +46,39 @@ def setup_parser() -> argparse.ArgumentParser:
         default="ALL",
         help="크롤링할 회사 선택 (기본값: ALL)",
     )
-    parser.add_argument(
-        "--clear",
-        action="store_true",
-        help="[crawl 모드 전용] 지정된 회사의 모든 포스트를 크롤링 전에 데이터베이스에서 삭제합니다. 'ALL' 회사에는 적용되지 않습니다.",
-    )
     return parser
 
 
-def _get_target_configs(company_arg: str) -> list:
+def _get_target_configs(company_arg: str) -> List[dict]:
     """Helper function to get target blog configurations based on company argument."""
     if company_arg == "ALL":
         return BLOG_CONFIGS
 
-    target_configs = [config for config in BLOG_CONFIGS if config["company"].name == company_arg]
+    target_configs = [
+        config for config in BLOG_CONFIGS if config["company"].name == company_arg
+    ]
     if not target_configs:
         logger.warning(f"{company_arg}에 해당하는 블로그 설정이 없습니다.")
     return target_configs
 
 
-def _run_crawler(target_configs: list, max_posts: int) -> list[CrawledContentDto]:
+def _run_crawler(target_configs: List[dict], max_posts: int) -> List[CrawledContentDto]:
     """Helper function to run the crawler and return crawled posts."""
     crawler = BlogCrawler()
     logger.info(f"크롤링을 시작합니다... (대상: {len(target_configs)}개 블로그)")
-    crawled_posts = crawler.crawl_all_sources(configs=target_configs, max_posts=max_posts)
+    crawled_posts = crawler.crawl_all_sources(
+        configs=target_configs, max_posts=max_posts
+    )
     logger.info(f"총 {len(crawled_posts)}개의 포스트를 크롤링했습니다.")
     return crawled_posts
 
 
 def run_crawl_and_process(
     args: argparse.Namespace,
-    delete_posts_by_company: Callable[[str], None],
-    process_posts: Callable[[list[CrawledContentDto]], list[Any]],
-    save_to_rds: Callable[[list[Any]], tuple[int, int]],
+    process_posts: Callable[[List[CrawledContentDto]], List[Any]],
+    save_to_rds: Callable[[List[Any]], Tuple[int, int]],
 ) -> int:
     """Crawl, process, and save posts."""
-    if args.clear:
-        if args.company == "ALL":
-            logger.error("'ALL' 회사에 대해 --clear 옵션을 사용할 수 없습니다. 특정 회사를 지정해주세요.")
-            return 1
-        company_to_clear = args.company
-        logger.info(f"{company_to_clear} 회사의 모든 포스트를 데이터베이스에서 삭제합니다...")
-        delete_posts_by_company(company_to_clear)
-        logger.info(f"{company_to_clear} 회사의 포스트 삭제 완료.")
-
     target_configs = _get_target_configs(args.company)
     if not target_configs:
         return 0
@@ -136,24 +125,6 @@ def run_crawl_only(args: argparse.Namespace) -> int:
     return 0
 
 
-def run_delete_only(args: argparse.Namespace, delete_posts_by_company: Callable[[str], None]) -> int:
-    """Delete posts without crawling."""
-    if args.company == "ALL":
-        logger.error("'ALL' 회사에 대해 삭제 옵션을 사용할 수 없습니다. 특정 회사를 지정해주세요.")
-        return 1
-
-    try:
-        company_to_clear = args.company
-        logger.info(f"{company_to_clear} 회사의 모든 포스트를 데이터베이스에서 삭제합니다...")
-        delete_posts_by_company(company_to_clear)
-        logger.info(f"{company_to_clear} 회사의 포스트 삭제 완료.")
-
-    except Exception as e:
-        logger.error(f"삭제 중 오류 발생: {e}", exc_info=True)
-        return 1
-    return 0
-
-
 def main() -> int:
     """Main entry point of the application."""
     parser = setup_parser()
@@ -166,16 +137,16 @@ def main() -> int:
     from src.database import init_db
 
     init_db()
-    from src.core.db_handler import delete_posts_by_company, save_to_rds
+    from src.core.db_handler import save_to_rds
     from src.core.post_processor import process_posts
 
     try:
         if args.mode == "crawl":
-            return run_crawl_and_process(args, delete_posts_by_company, process_posts, save_to_rds)
+            return run_crawl_and_process(
+                args, process_posts, save_to_rds
+            )
         elif args.mode == "crawl-only":
             return run_crawl_only(args)
-        elif args.mode == "delete-only":
-            return run_delete_only(args, delete_posts_by_company)
         else:
             parser.print_help()
             return 1

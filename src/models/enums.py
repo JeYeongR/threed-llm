@@ -1,10 +1,3 @@
-"""
-애플리케이션에서 사용되는 주요 Enum 클래스들을 정의합니다.
-
-이 모듈은 게시물의 기술 분야(Field) 및 회사(Company)를 나타내는
-Enum 타입을 제공합니다.
-"""
-
 from enum import Enum
 
 

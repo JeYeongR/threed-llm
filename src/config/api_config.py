@@ -1,10 +1,3 @@
-"""
-API 및 모델 관련 설정을 환경 변수에서 로드합니다.
-
-이 모듈은 .env 파일에서 OpenAI API 키 및 모델 설정을 로드하고,
-필수적인 설정값이 누락된 경우 오류를 발생시킵니다.
-"""
-
 import logging
 import os
 from typing import Optional

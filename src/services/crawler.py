@@ -2,6 +2,7 @@ import logging
 import re
 from datetime import datetime
 from typing import Any, Dict, List, Union
+from urllib.parse import urlparse  # urlparse 임포트 추가
 
 import feedparser
 import requests
@@ -32,15 +33,30 @@ class BlogCrawler:
             BlogType.TOSS: self._parse_toss_blog,
             BlogType.DAANGN: self._parse_daangn_blog,
             BlogType.OLIVE_YOUNG: self._parse_olive_young_blog,
-            BlogType.GENERIC: self._parse_generic_blog,
+            BlogType.MY_REAL_TRIP: self._parse_myrealtrip_blog,  # 새로 추가
+            BlogType.LINE: self._parse_line_blog,  # 새로 추가
         }
         self.blog_meta = {
             BlogType.NAVER: {"source_name": "네이버 D2", "company": "NAVER"},
             BlogType.KAKAO: {"source_name": "카카오 기술 블로그", "company": "KAKAO"},
             BlogType.DEVOCEAN: {"source_name": "데보션 블로그", "company": "DEVOCEAN"},
             BlogType.TOSS: {"source_name": "토스 기술 블로그", "company": "TOSS"},
-            BlogType.DAANGN: {"source_name": "당근마켓 기술 블로그", "company": "DAANGN"},
-            BlogType.OLIVE_YOUNG: {"source_name": "올리브영 기술 블로그", "company": "OLIVE_YOUNG"},
+            BlogType.DAANGN: {
+                "source_name": "당근마켓 기술 블로그",
+                "company": "DAANGN",
+            },
+            BlogType.OLIVE_YOUNG: {
+                "source_name": "올리브영 기술 블로그",
+                "company": "OLIVE_YOUNG",
+            },
+            BlogType.MY_REAL_TRIP: {  # 새로 추가
+                "source_name": "마이리얼트립 기술 블로그",
+                "company": "MY_REAL_TRIP",
+            },
+            BlogType.LINE: {  # 새로 추가
+                "source_name": "라인 기술 블로그",
+                "company": "LINE",
+            },
         }
 
     def crawl_all_sources(
@@ -68,6 +84,11 @@ class BlogCrawler:
             return []
 
         blog_type = self._detect_blog_type(blog_url, config)
+        if blog_type is None:
+            logger.warning(
+                f"알 수 없는 블로그 타입입니다: {blog_url}. 이 블로그는 건너<0xEB><0x9B><0x84>니다."
+            )
+            return []
         feed = feedparser.parse(blog_url)
 
         source_name_cfg = config.get("name")
@@ -83,44 +104,57 @@ class BlogCrawler:
             effective_source_name = source_name_cfg or f"Unknown Blog ({blog_url})"
             effective_company = company_cfg if company_cfg is not None else Company.ETC
 
-        parser = self.parsers.get(blog_type, self._parse_generic_blog)
+        parser = self.parsers.get(blog_type)
+        if parser is None:
+            logger.error(
+                f"{blog_type}에 대한 파서가 존재하지 않습니다. {blog_url} 블로그를 건너<0xEB><0x9B><0x84>니다."
+            )
+            return []
         entries = parser(feed, max_posts)
 
         return self._process_feed(
             blog_url, effective_source_name, effective_company, entries
         )
 
-    def _parse_generic_blog(self, feed, max_posts: int) -> List[Dict[str, Any]]:
-        """제네릭 블로그 피드를 파싱합니다."""
+    def _parse_myrealtrip_blog(self, feed, max_posts: int) -> List[Dict[str, Any]]:
+        """마이리얼트립 블로그 피드를 파싱합니다."""
+        return feed.entries[:max_posts]
+
+    def _parse_line_blog(self, feed, max_posts: int) -> List[Dict[str, Any]]:
+        """라인 블로그 피드를 파싱합니다."""
         return feed.entries[:max_posts]
 
     def _parse_naver_blog(self, feed, max_posts: int) -> List[Dict[str, Any]]:
         """네이버 블로그 피드를 파싱합니다."""
-        return self._parse_generic_blog(feed, max_posts)
+        return feed.entries[:max_posts]
 
     def _parse_kakao_blog(self, feed, max_posts: int) -> List[Dict[str, Any]]:
         """카카오 블로그 피드를 파싱합니다."""
-        return self._parse_generic_blog(feed, max_posts)
+        return feed.entries[:max_posts]
 
     def _parse_devocean_blog(self, feed, max_posts: int) -> List[Dict[str, Any]]:
         """데보션 블로그 피드를 파싱합니다."""
-        # 현재는 제네릭 파서와 동일
-        return self._parse_generic_blog(feed, max_posts)
+        # 데보션은 description에 내용이 다 들어있어서 별도 처리 불필요
+        return feed.entries[:max_posts]
 
     def _parse_toss_blog(self, feed, max_posts: int) -> List[Dict[str, Any]]:
         """토스 블로그 피드를 파싱합니다."""
-        # 현재는 제네릭 파서와 동일
-        return self._parse_generic_blog(feed, max_posts)
+        # 토스는 기본 파싱으로 충분
+        return feed.entries[:max_posts]
 
     def _parse_daangn_blog(self, feed, max_posts: int) -> List[Dict[str, Any]]:
         """당근마켓 기술 블로그(Medium) 피드를 파싱합니다."""
         # 초기 구현은 제네릭 파서와 동일. 필요시 Medium 특화 로직 추가.
-        logger.info(f"Parsing Daangn (Medium) blog feed using _parse_daangn_blog for up to {max_posts} posts.")
+        logger.info(
+            f"Parsing Daangn (Medium) blog feed using _parse_daangn_blog for up to {max_posts} posts."
+        )
         return feed.entries[:max_posts]
 
     def _parse_olive_young_blog(self, feed, max_posts: int) -> List[Dict[str, Any]]:
         """올리브영 기술 블로그 피드를 파싱합니다."""
-        logger.info(f"Parsing Olive Young blog feed using _parse_olive_young_blog for up to {max_posts} posts.")
+        logger.info(
+            f"Parsing Olive Young blog feed using _parse_olive_young_blog for up to {max_posts} posts."
+        )
         return feed.entries[:max_posts]
 
     def _process_feed(
@@ -221,30 +255,52 @@ class BlogCrawler:
         logger.info(f"{source_name} 블로그 크롤링 완료, {len(results)}개 포스트 수집")
         return results
 
-    def _detect_blog_type(self, blog_url: str, config: Dict[str, Any]) -> BlogType:
-        """블로그 타입을 감지합니다.
+    def _detect_blog_type(
+        self, blog_url: str, config: Dict[str, Any]
+    ) -> Union[BlogType, None]:
+        """블로그 타입을 감지합니다. (match-case 사용)
 
         Args:
             blog_url: 블로그 URL
             config: 블로그 설정 정보
 
         Returns:
-            블로그 타입 식별자
+            블로그 타입 식별자 또는 None
         """
-        if "naver.com" in blog_url or "d2.naver.com" in blog_url:
-            return BlogType.NAVER
-        elif "kakao.com" in blog_url or "tech.kakao.com" in blog_url:
-            return BlogType.KAKAO
-        elif "politepol.com" in blog_url and "DEVOCEAN" in config.get("company", ""):
-            return BlogType.DEVOCEAN
-        elif "toss.tech" in blog_url:
-            return BlogType.TOSS
-        elif "medium.com/feed/daangn" in blog_url or "daangn.com" in blog_url: # 당근 추가
-            return BlogType.DAANGN
-        elif "oliveyoung.tech" in blog_url:
-            return BlogType.OLIVE_YOUNG
-        else:
-            return BlogType.GENERIC
+        try:
+            parsed_url = urlparse(blog_url)
+            hostname = parsed_url.hostname if parsed_url.hostname else ""
+            path = parsed_url.path
+        except ValueError:
+            logger.warning(f"잘못된 형식의 URL입니다: {blog_url}")
+            return None
+
+        match hostname:
+            case "d2.naver.com":
+                return BlogType.NAVER
+            case "tech.kakao.com":
+                return BlogType.KAKAO
+            case "politepol.com":
+                if config.get("company") == Company.DEVOCEAN:
+                    return BlogType.DEVOCEAN
+            case "toss.tech":
+                return BlogType.TOSS
+            case "daangn.com":
+                return BlogType.DAANGN
+            case "oliveyoung.tech":
+                return BlogType.OLIVE_YOUNG
+            case "techblog.lycorp.co.jp":
+                return BlogType.LINE
+            case "medium.com":
+                if path == "/feed/daangn":
+                    return BlogType.DAANGN
+                elif path == "/feed/myrealtrip-product":
+                    return BlogType.MY_REAL_TRIP
+            case _:
+                pass
+
+        logger.warning(f"알 수 없는 블로그 URL 패턴입니다 (match-case): {blog_url}")
+        return None
 
     def _extract_thumbnail(self, entry) -> str:
         """엔트리에서 썸네일 URL을 추출합니다."""

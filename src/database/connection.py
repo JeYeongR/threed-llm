@@ -1,11 +1,3 @@
-"""
-데이터베이스 연결 및 세션 관리를 담당하는 모듈입니다.
-
-이 모듈은 SSH 터널을 설정하여 데이터베이스에 안전하게 연결하고,
-SQLAlchemy 엔진 및 세션 팩토리를 초기화합니다. 애플리케이션 전역에서
-사용될 데이터베이스 세션을 제공하는 함수(`get_db`)를 포함합니다.
-"""
-
 import logging
 from typing import Generator, Optional
 

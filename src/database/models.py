@@ -1,12 +1,3 @@
-"""
-데이터베이스 테이블 스키마를 정의하는 SQLAlchemy ORM 모델입니다.
-
-이 모듈은 애플리케이션의 핵심 데이터인 게시물(Post)과
-회사 기술 블로그 게시물(CompanyPost)을 나타내는 모델 클래스를 포함합니다.
-SQLAlchemy의 단일 테이블 상속(Single Table Inheritance)을 사용하여
-'posts' 테이블에서 다양한 게시물 유형을 관리합니다.
-"""
-
 from sqlalchemy import Column, DateTime, Enum, ForeignKey, Integer, String, Text
 from sqlalchemy.ext.declarative import declarative_base
 

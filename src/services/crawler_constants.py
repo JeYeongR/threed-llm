@@ -23,4 +23,3 @@ class BlogType(Enum):
     MY_REAL_TRIP = "myrealtrip"
     DAANGN = "daangn"
     OLIVE_YOUNG = "olive_young"
-    GENERIC = "generic"
