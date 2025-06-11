@@ -31,4 +31,5 @@ class Company(str, Enum):
     MY_REAL_TRIP = "마이리얼트립"
     LINE = "라인"
     DAANGN = "당근"
+    OLIVE_YOUNG = "올리브영"
     ETC = "기타"

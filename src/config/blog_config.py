@@ -70,4 +70,10 @@ BLOG_CONFIGS: List[BlogConfig] = [
         "company": Company.DAANGN,
         "max_posts": 5,
     },
+    {
+        "blog_url": "https://oliveyoung.tech/rss.xml",
+        "name": "올리브영 기술 블로그",
+        "company": Company.OLIVE_YOUNG,
+        "max_posts": 5,
+    },
 ]
