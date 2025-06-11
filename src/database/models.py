@@ -28,14 +28,14 @@ class DBPost(Base):
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     title = Column(String(255), nullable=True)
-    content = Column(Text, nullable=True)  # 요약 또는 본문일 수 있음
+    content = Column(Text, nullable=True)
     thumbnail_image_url = Column(String(255), nullable=True)
     field = Column(Enum(Field), nullable=True)
     published_at = Column(DateTime, nullable=True)
-    created_at = Column(DateTime, nullable=False)  # 생성 시간은 필수
-    updated_at = Column(DateTime, nullable=False)  # 수정 시간은 필수
+    created_at = Column(DateTime, nullable=False)
+    updated_at = Column(DateTime, nullable=False)
     view_count = Column(Integer, nullable=False, default=0)
-    post_type = Column(String(31), nullable=False)  # 게시물 타입 구분자
+    post_type = Column(String(31), nullable=False)
 
     __mapper_args__ = {"polymorphic_on": post_type, "polymorphic_identity": "POST"}
 
@@ -51,10 +51,10 @@ class DBCompanyPost(DBPost):
         company: 게시물을 발행한 회사 (Company Enum, non-nullable).
     """
 
-    __tablename__ = "company_posts"  # 실제 테이블명은 상속 관계 설정에 따라 결정됨
+    __tablename__ = "company_posts"
 
     id = Column(Integer, ForeignKey("posts.id"), primary_key=True)
     source_url = Column(String(255), nullable=True)
-    company = Column(Enum(Company), nullable=False)  # 회사 정보는 필수
+    company = Column(Enum(Company), nullable=False)
 
     __mapper_args__ = {"polymorphic_identity": "COMPANY"}

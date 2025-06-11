@@ -8,7 +8,6 @@ from sqlalchemy.orm import Session
 
 from src.database import DBCompanyPost, get_db
 from src.models.dto import CompanyPost
-from src.models.enums import Company
 
 logger = logging.getLogger(__name__)
 

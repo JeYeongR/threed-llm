@@ -2,7 +2,7 @@ import logging
 import re
 from datetime import datetime
 from typing import Any, Dict, List, Union
-from urllib.parse import urlparse  # urlparse 임포트 추가
+from urllib.parse import urlparse
 
 import feedparser
 import requests
