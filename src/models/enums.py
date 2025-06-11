@@ -30,4 +30,5 @@ class Company(str, Enum):
     TOSS = "토스"
     MY_REAL_TRIP = "마이리얼트립"
     LINE = "라인"
+    DAANGN = "당근"
     ETC = "기타"

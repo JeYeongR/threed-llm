@@ -21,4 +21,5 @@ class BlogType(Enum):
     TOSS = "toss"
     LINE = "line"
     MY_REAL_TRIP = "myrealtrip"
+    DAANGN = "daangn"
     GENERIC = "generic"

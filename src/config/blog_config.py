@@ -64,4 +64,10 @@ BLOG_CONFIGS: List[BlogConfig] = [
         "company": Company.LINE,
         "max_posts": 5,
     },
+    {
+        "blog_url": "https://medium.com/feed/daangn",
+        "name": "당근마켓 기술 블로그",
+        "company": Company.DAANGN,
+        "max_posts": 5,
+    },
 ]

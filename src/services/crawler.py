@@ -30,6 +30,7 @@ class BlogCrawler:
             BlogType.KAKAO: self._parse_kakao_blog,
             BlogType.DEVOCEAN: self._parse_devocean_blog,
             BlogType.TOSS: self._parse_toss_blog,
+            BlogType.DAANGN: self._parse_daangn_blog,
             BlogType.GENERIC: self._parse_generic_blog,
         }
         self.blog_meta = {
@@ -37,6 +38,7 @@ class BlogCrawler:
             BlogType.KAKAO: {"source_name": "카카오 기술 블로그", "company": "KAKAO"},
             BlogType.DEVOCEAN: {"source_name": "데보션 블로그", "company": "DEVOCEAN"},
             BlogType.TOSS: {"source_name": "토스 기술 블로그", "company": "TOSS"},
+            BlogType.DAANGN: {"source_name": "당근마켓 기술 블로그", "company": "DAANGN"},
         }
 
     def crawl_all_sources(
@@ -107,6 +109,12 @@ class BlogCrawler:
         """토스 블로그 피드를 파싱합니다."""
         # 현재는 제네릭 파서와 동일
         return self._parse_generic_blog(feed, max_posts)
+
+    def _parse_daangn_blog(self, feed, max_posts: int) -> List[Dict[str, Any]]:
+        """당근마켓 기술 블로그(Medium) 피드를 파싱합니다."""
+        # 초기 구현은 제네릭 파서와 동일. 필요시 Medium 특화 로직 추가.
+        logger.info(f"Parsing Daangn (Medium) blog feed using _parse_daangn_blog for up to {max_posts} posts.")
+        return feed.entries[:max_posts]
 
     def _process_feed(
         self,
@@ -224,6 +232,8 @@ class BlogCrawler:
             return BlogType.DEVOCEAN
         elif "toss.tech" in blog_url:
             return BlogType.TOSS
+        elif "medium.com/feed/daangn" in blog_url or "daangn.com" in blog_url: # 당근 추가
+            return BlogType.DAANGN
         else:
             return BlogType.GENERIC
 
