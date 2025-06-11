@@ -33,8 +33,8 @@ class BlogCrawler:
             BlogType.TOSS: self._parse_toss_blog,
             BlogType.DAANGN: self._parse_daangn_blog,
             BlogType.OLIVE_YOUNG: self._parse_olive_young_blog,
-            BlogType.MY_REAL_TRIP: self._parse_myrealtrip_blog,  # 새로 추가
-            BlogType.LINE: self._parse_line_blog,  # 새로 추가
+            BlogType.MY_REAL_TRIP: self._parse_myrealtrip_blog,
+            BlogType.LINE: self._parse_line_blog,
         }
         self.blog_meta = {
             BlogType.NAVER: {"source_name": "네이버 D2", "company": "NAVER"},
@@ -49,11 +49,11 @@ class BlogCrawler:
                 "source_name": "올리브영 기술 블로그",
                 "company": "OLIVE_YOUNG",
             },
-            BlogType.MY_REAL_TRIP: {  # 새로 추가
+            BlogType.MY_REAL_TRIP: {
                 "source_name": "마이리얼트립 기술 블로그",
                 "company": "MY_REAL_TRIP",
             },
-            BlogType.LINE: {  # 새로 추가
+            BlogType.LINE: {
                 "source_name": "라인 기술 블로그",
                 "company": "LINE",
             },
@@ -134,17 +134,14 @@ class BlogCrawler:
 
     def _parse_devocean_blog(self, feed, max_posts: int) -> List[Dict[str, Any]]:
         """데보션 블로그 피드를 파싱합니다."""
-        # 데보션은 description에 내용이 다 들어있어서 별도 처리 불필요
         return feed.entries[:max_posts]
 
     def _parse_toss_blog(self, feed, max_posts: int) -> List[Dict[str, Any]]:
         """토스 블로그 피드를 파싱합니다."""
-        # 토스는 기본 파싱으로 충분
         return feed.entries[:max_posts]
 
     def _parse_daangn_blog(self, feed, max_posts: int) -> List[Dict[str, Any]]:
         """당근마켓 기술 블로그(Medium) 피드를 파싱합니다."""
-        # 초기 구현은 제네릭 파서와 동일. 필요시 Medium 특화 로직 추가.
         logger.info(
             f"Parsing Daangn (Medium) blog feed using _parse_daangn_blog for up to {max_posts} posts."
         )
@@ -210,11 +207,9 @@ class BlogCrawler:
                     company_enum_member = company_name
                 elif isinstance(company_name, str):
                     try:
-                        # Try to match by enum key (e.g., "NAVER", "KAKAO")
                         company_enum_member = Company[company_name.upper()]
                     except KeyError:
                         try:
-                            # Try to match by enum value (e.g., "네이버", "카카오")
                             company_enum_member = Company(company_name)
                         except ValueError:
                             logger.warning(
