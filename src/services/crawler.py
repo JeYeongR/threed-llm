@@ -1,7 +1,7 @@
 import logging
 import re
 from datetime import datetime
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Optional, Union
 from urllib.parse import urlparse
 
 import feedparser
@@ -26,38 +26,6 @@ class BlogCrawler:
         """크롤러 초기화"""
         self.session = requests.Session()
         self.session.headers.update(DEFAULT_HEADERS)
-        self.parsers = {
-            BlogType.NAVER: self._parse_naver_blog,
-            BlogType.KAKAO: self._parse_kakao_blog,
-            BlogType.DEVOCEAN: self._parse_devocean_blog,
-            BlogType.TOSS: self._parse_toss_blog,
-            BlogType.DAANGN: self._parse_daangn_blog,
-            BlogType.OLIVE_YOUNG: self._parse_olive_young_blog,
-            BlogType.MY_REAL_TRIP: self._parse_myrealtrip_blog,
-            BlogType.LINE: self._parse_line_blog,
-        }
-        self.blog_meta = {
-            BlogType.NAVER: {"source_name": "네이버 D2", "company": "NAVER"},
-            BlogType.KAKAO: {"source_name": "카카오 기술 블로그", "company": "KAKAO"},
-            BlogType.DEVOCEAN: {"source_name": "데보션 블로그", "company": "DEVOCEAN"},
-            BlogType.TOSS: {"source_name": "토스 기술 블로그", "company": "TOSS"},
-            BlogType.DAANGN: {
-                "source_name": "당근마켓 기술 블로그",
-                "company": "DAANGN",
-            },
-            BlogType.OLIVE_YOUNG: {
-                "source_name": "올리브영 기술 블로그",
-                "company": "OLIVE_YOUNG",
-            },
-            BlogType.MY_REAL_TRIP: {
-                "source_name": "마이리얼트립 기술 블로그",
-                "company": "MY_REAL_TRIP",
-            },
-            BlogType.LINE: {
-                "source_name": "라인 기술 블로그",
-                "company": "LINE",
-            },
-        }
 
     def crawl_all_sources(
         self, configs: List[Dict[str, Any]], max_posts: int
@@ -94,75 +62,33 @@ class BlogCrawler:
         source_name_cfg = config.get("name")
         company_cfg = config.get("company")
 
-        meta = self.blog_meta.get(blog_type)
-        if meta:
-            effective_source_name = source_name_cfg or meta["source_name"]
-            effective_company = (
-                company_cfg if company_cfg is not None else Company[meta["company"]]
-            )
-        else:
-            effective_source_name = source_name_cfg or f"Unknown Blog ({blog_url})"
-            effective_company = company_cfg if company_cfg is not None else Company.ETC
-
-        parser = self.parsers.get(blog_type)
-        if parser is None:
-            logger.error(
-                f"{blog_type}에 대한 파서가 존재하지 않습니다. {blog_url} 블로그를 건너<0xEB><0x9B><0x84>니다."
-            )
-            return []
+        parser = self._parse_default_feed
         entries = parser(feed, max_posts)
 
-        return self._process_feed(
-            blog_url, effective_source_name, effective_company, entries
-        )
+        return self._process_feed(blog_url, source_name_cfg, company_cfg, entries)
 
-    def _parse_myrealtrip_blog(self, feed, max_posts: int) -> List[Dict[str, Any]]:
-        """마이리얼트립 블로그 피드를 파싱합니다."""
-        return feed.entries[:max_posts]
-
-    def _parse_line_blog(self, feed, max_posts: int) -> List[Dict[str, Any]]:
-        """라인 블로그 피드를 파싱합니다."""
-        return feed.entries[:max_posts]
-
-    def _parse_naver_blog(self, feed, max_posts: int) -> List[Dict[str, Any]]:
-        """네이버 블로그 피드를 파싱합니다."""
-        return feed.entries[:max_posts]
-
-    def _parse_kakao_blog(self, feed, max_posts: int) -> List[Dict[str, Any]]:
-        """카카오 블로그 피드를 파싱합니다."""
-        return feed.entries[:max_posts]
-
-    def _parse_devocean_blog(self, feed, max_posts: int) -> List[Dict[str, Any]]:
-        """데보션 블로그 피드를 파싱합니다."""
-        return feed.entries[:max_posts]
-
-    def _parse_toss_blog(self, feed, max_posts: int) -> List[Dict[str, Any]]:
-        """토스 블로그 피드를 파싱합니다."""
-        return feed.entries[:max_posts]
-
-    def _parse_daangn_blog(self, feed, max_posts: int) -> List[Dict[str, Any]]:
-        """당근마켓 기술 블로그(Medium) 피드를 파싱합니다."""
-        logger.info(
-            f"Parsing Daangn (Medium) blog feed using _parse_daangn_blog for up to {max_posts} posts."
-        )
-        return feed.entries[:max_posts]
-
-    def _parse_olive_young_blog(self, feed, max_posts: int) -> List[Dict[str, Any]]:
-        """올리브영 기술 블로그 피드를 파싱합니다."""
-        logger.info(
-            f"Parsing Olive Young blog feed using _parse_olive_young_blog for up to {max_posts} posts."
+    def _parse_default_feed(self, feed, max_posts: int) -> List[Dict[str, Any]]:
+        """기본 RSS/Atom 피드를 파싱합니다."""
+        logger.debug(
+            f"Parsing feed using _parse_default_feed for up to {max_posts} posts."
         )
         return feed.entries[:max_posts]
 
     def _process_feed(
         self,
         blog_url: str,
-        source_name: str,
-        company_name: Union[str, Company],
+        source_name_from_config: Optional[str],
+        company_obj: Company,
         entries: List[Dict[str, Any]],
     ) -> List[CrawledContentDto]:
         """피드 항목을 CrawledContentDto 객체로 변환합니다."""
-        logger.info(f"{source_name} 블로그 크롤링 시작: {blog_url}")
+        final_source_name = (
+            source_name_from_config
+            if source_name_from_config is not None
+            else f"Unknown Blog ({blog_url})"
+        )
+
+        logger.info(f"{final_source_name} 블로그 크롤링 시작: {blog_url}")
         results = []
         try:
             for entry in entries:
@@ -170,7 +96,7 @@ class BlogCrawler:
                 link = self._extract_link_from_entry(entry)
                 if not link:
                     logger.warning(
-                        f"포스트 '{title}' ({source_name})에서 링크를 찾을 수 없어 건너뜁니다."
+                        f"포스트 '{title}' ({final_source_name})에서 링크를 찾을 수 없어 건너뜁니다."
                     )
                     continue
 
@@ -181,73 +107,53 @@ class BlogCrawler:
                 if not thumbnail_url and link:
                     try:
                         logger.debug(
-                            f"피드에서 썸네일을 찾지 못했습니다. 웹페이지에서 추출 시도: {link} ({source_name})"
+                            f"피드에서 썸네일을 찾지 못했습니다. 웹페이지에서 추출 시도: {link} ({final_source_name})"
                         )
                         thumbnail_url = extract_thumbnail_from_webpage(
                             self.session, link
                         )
                         if thumbnail_url:
                             logger.debug(
-                                f"웹페이지에서 썸네일 추출 성공: {thumbnail_url} ({source_name})"
+                                f"웹페이지에서 썸네일 추출 성공: {thumbnail_url} ({final_source_name})"
                             )
                         else:
                             logger.debug(
-                                f"웹페이지 {link}에서 썸네일을 찾지 못했습니다. ({source_name})"
+                                f"웹페이지 {link}에서 썸네일을 찾지 못했습니다. ({final_source_name})"
                             )
                     except Exception as e_webpage_thumb:
                         logger.warning(
-                            f"웹페이지 {link}에서 썸네일 추출 중 오류 발생 ({source_name}): {e_webpage_thumb}"
+                            f"웹페이지 {link}에서 썸네일 추출 중 오류 발생 ({final_source_name}): {e_webpage_thumb}"
                         )
                         thumbnail_url = None
 
                 normalized_thumbnail_url = normalize_thumbnail_url(thumbnail_url, link)
 
-                company_enum_member: Company
-                if isinstance(company_name, Company):
-                    company_enum_member = company_name
-                elif isinstance(company_name, str):
-                    try:
-                        company_enum_member = Company[company_name.upper()]
-                    except KeyError:
-                        try:
-                            company_enum_member = Company(company_name)
-                        except ValueError:
-                            logger.warning(
-                                f"문자열 회사 이름 '{company_name}'을(를) Company Enum으로 변환할 수 없습니다. "
-                                f"'{source_name}' 블로그({blog_url})에 대해 Company.ETC로 설정합니다."
-                            )
-                            company_enum_member = Company.ETC
-                    except Exception as e_str_conv:
-                        logger.error(
-                            f"문자열 회사 이름 '{company_name}' 변환 중 예상치 못한 오류 발생: {e_str_conv}. "
-                            f"'{source_name}' 블로그({blog_url})에 대해 Company.ETC로 설정합니다."
-                        )
-                        company_enum_member = Company.ETC
-                else:
-                    logger.error(
-                        f"회사 이름에 예상치 못한 타입({type(company_name)})이 전달되었습니다: '{company_name}'. "
-                        f"'{source_name}' 블로그({blog_url})에 대해 Company.ETC로 설정합니다."
-                    )
-                    company_enum_member = Company.ETC
+                company_enum_member: Company = company_obj
 
                 post_data = CrawledContentDto(
                     title=title,
                     content=content_text,
                     url=link,
-                    source_name=source_name,
+                    source_name=final_source_name,
                     thumbnail_url=normalized_thumbnail_url,
                     published_at=published_date,
                     company=company_enum_member,
                 )
                 results.append(post_data)
-                logger.debug(f"{source_name} 포스트 크롤링 완료: {title}")
+                logger.debug(f"{final_source_name} 포스트 크롤링 완료: {title}")
 
         except requests.exceptions.RequestException as e:
-            logger.error(f"{source_name} 블로그 ({blog_url}) 요청 중 오류 발생: {e}")
+            logger.error(
+                f"{final_source_name} 블로그 ({blog_url}) 요청 중 오류 발생: {e}"
+            )
         except Exception as e:
-            logger.error(f"{source_name} 블로그 ({blog_url}) 파싱 중 오류 발생: {e}")
+            logger.error(
+                f"{final_source_name} 블로그 ({blog_url}) 파싱 중 오류 발생: {e}"
+            )
 
-        logger.info(f"{source_name} 블로그 크롤링 완료, {len(results)}개 포스트 수집")
+        logger.info(
+            f"{final_source_name} 블로그 크롤링 완료, {len(results)}개 포스트 수집"
+        )
         return results
 
     def _detect_blog_type(

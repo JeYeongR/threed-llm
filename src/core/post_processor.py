@@ -33,8 +33,6 @@ def process_posts(crawled_posts: List[CrawledContentDto]) -> List[CompanyPost]:
             logger.info(f"  - 콘텐츠 요약 중...")
             summary_result = summarize_content(crawled.content)
 
-            company = crawled.company
-
             logger.info(f"  - 썸네일 처리 중...")
             thumbnail_s3_url = _process_thumbnail(
                 crawled.thumbnail_url, crawled.company.name.lower()

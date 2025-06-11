@@ -62,7 +62,7 @@ def init_db() -> None:
 
         engine = create_engine(DATABASE_URL, pool_recycle=3600, pool_pre_ping=True)
 
-        with engine.connect() as connection:
+        with engine.connect():
             logger.info("데이터베이스 엔진 연결 테스트 성공.")
 
         SessionLocal = get_session_factory(engine)
