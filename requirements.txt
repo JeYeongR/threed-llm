@@ -10,3 +10,4 @@ requests==2.32.3
 pymysql==1.1.1
 sshtunnel==0.4.0
 boto3==1.38.32
+sqlalchemy==2.0.41
