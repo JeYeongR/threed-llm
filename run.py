@@ -142,9 +142,7 @@ def main() -> int:
 
     try:
         if args.mode == "crawl":
-            return run_crawl_and_process(
-                args, process_posts, save_to_rds
-            )
+            return run_crawl_and_process(args, process_posts, save_to_rds)
         elif args.mode == "crawl-only":
             return run_crawl_only(args)
         else:
