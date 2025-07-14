@@ -1,4 +1,5 @@
 import logging
+from enum import Enum
 from typing import Dict
 
 from langchain.output_parsers import PydanticOutputParser
@@ -7,9 +8,19 @@ from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
 
 from src.config.api_config import OPENAI_API_KEY, OPENAI_MODEL_NAME, OPENAI_TEMPERATURE
-from src.services.summarizer_constants import SummaryField
 
 logger = logging.getLogger(__name__)
+
+
+class SummaryField(str, Enum):
+    AI = "AI"
+    BACKEND = "Backend"
+    FRONTEND = "Frontend"
+    DEVOPS = "DevOps"
+    MOBILE = "Mobile"
+    DB = "DB"
+    COLLAB_TOOL = "Collab Tool"
+    ETC = "기타"
 
 
 class SummaryResult(BaseModel):

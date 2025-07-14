@@ -7,6 +7,7 @@ from urllib.parse import urlparse
 import feedparser
 import requests
 
+from src.config.blog_config import BLOG_CONFIGS
 from src.models.dto import CrawledContentDto
 from src.models.enums import Company
 from src.services.crawler_constants import DEFAULT_HEADERS, BlogType
@@ -34,7 +35,7 @@ class BlogCrawler:
         all_posts = []
         for config in configs:
             try:
-                posts = self.crawl_blog(config, max_posts)
+                posts = self._crawl_blog(config, max_posts)
                 all_posts.extend(posts)
             except Exception as e:
                 logger.error(
@@ -42,7 +43,7 @@ class BlogCrawler:
                 )
         return all_posts
 
-    def crawl_blog(
+    def _crawl_blog(
         self, config: Dict[str, Any], max_posts: int
     ) -> List[CrawledContentDto]:
         """개별 블로그를 크롤링하고 처리합니다."""
@@ -54,7 +55,7 @@ class BlogCrawler:
         blog_type = self._detect_blog_type(blog_url, config)
         if blog_type is None:
             logger.warning(
-                f"알 수 없는 블로그 타입입니다: {blog_url}. 이 블로그는 건너<0xEB><0x9B><0x84>니다."
+                f"알 수 없는 블로그 타입입니다: {blog_url}. 이 블로그는 건너뜁니다."
             )
             return []
         feed = feedparser.parse(blog_url)

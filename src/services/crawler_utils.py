@@ -11,28 +11,6 @@ from src.services.crawler_constants import REQUEST_TIMEOUT
 logger = logging.getLogger(__name__)
 
 
-def extract_image_url_from_html(html: str, base_url: str) -> Optional[str]:
-    """
-    웹페이지 HTML 본문에서 가장 의미 있는 이미지 URL을 추출합니다.
-
-    Args:
-        html: 분석할 HTML 콘텐츠 문자열.
-        base_url: 이미지 URL이 상대 경로일 경우 절대 경로로 변환하기 위한 기준 URL.
-
-    Returns:
-        추출된 이미지의 절대 URL. 이미지를 찾지 못한 경우 None.
-    """
-    if not html:
-        return None
-
-    soup = BeautifulSoup(html, "lxml")
-    img_tag = soup.find("img")
-
-    if img_tag and img_tag.get("src"):
-        return urljoin(base_url, img_tag["src"])
-    return None
-
-
 def extract_thumbnail_from_webpage(session: RequestsSession, url: str) -> Optional[str]:
     """
     웹페이지에서 썸네일 URL을 추출합니다.
@@ -71,7 +49,7 @@ def extract_thumbnail_from_webpage(session: RequestsSession, url: str) -> Option
         logger.info(
             f"'{url}'에서 메타 태그 썸네일을 찾지 못해 본문 이미지 검색을 시도합니다."
         )
-        body_image_url = extract_image_url_from_html(html_content, url)
+        body_image_url = _extract_image_url_from_html(html_content, url)
         if body_image_url:
             logger.debug(f"'{url}'의 HTML 본문에서 썸네일로 사용할 이미지 찾음.")
             return body_image_url
@@ -127,3 +105,25 @@ def extract_text_from_html(html_content: str) -> str:
         script_or_style.decompose()
 
     return soup.get_text(separator="\n", strip=True)
+
+
+def _extract_image_url_from_html(html: str, base_url: str) -> Optional[str]:
+    """
+    웹페이지 HTML 본문에서 가장 의미 있는 이미지 URL을 추출합니다.
+
+    Args:
+        html: 분석할 HTML 콘텐츠 문자열.
+        base_url: 이미지 URL이 상대 경로일 경우 절대 경로로 변환하기 위한 기준 URL.
+
+    Returns:
+        추출된 이미지의 절대 URL. 이미지를 찾지 못한 경우 None.
+    """
+    if not html:
+        return None
+
+    soup = BeautifulSoup(html, "lxml")
+    img_tag = soup.find("img")
+
+    if img_tag and img_tag.get("src"):
+        return urljoin(base_url, img_tag["src"])
+    return None

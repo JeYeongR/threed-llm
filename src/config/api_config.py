@@ -2,15 +2,11 @@ import logging
 import os
 from typing import Optional
 
-from dotenv import load_dotenv
-
 logger = logging.getLogger(__name__)
-
-load_dotenv()
 
 OPENAI_API_KEY: Optional[str] = os.getenv("OPENAI_API_KEY")
 
-if not OPENAI_API_KEY or OPENAI_API_KEY == "your_openai_api_key_here":
+if not OPENAI_API_KEY:
     error_message = "OPENAI_API_KEY가 .env 파일에 제대로 설정되지 않았습니다. 프로그램을 종료합니다."
     logger.error(error_message)
     raise ValueError(error_message)

@@ -1,10 +1,7 @@
 import logging
 import os
 
-from dotenv import load_dotenv
 from sshtunnel import SSHTunnelForwarder
-
-load_dotenv()
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +66,7 @@ class DBTunnel:
                 self.tunnel = None
             return False
 
-    def stop(self):
+    def _stop(self):
 
         if self.tunnel is not None:
             self.tunnel.stop()
@@ -88,7 +85,7 @@ class DBTunnel:
 
     def __del__(self):
 
-        self.stop()
+        self._stop()
 
 
 db_tunnel = DBTunnel()
@@ -101,4 +98,4 @@ if __name__ == "__main__":
             logger.info(f"연결 파라미터: {tunnel.get_connection_params()}")
             input("터널이 성공적으로 열렸습니다. 종료하려면 Enter 키를 누르세요...")
     finally:
-        tunnel.stop()
+        tunnel._stop()

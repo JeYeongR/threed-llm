@@ -13,19 +13,6 @@ engine: Optional[Engine] = None
 SessionLocal: Optional[sessionmaker[Session]] = None
 
 
-def get_session_factory(bind: Engine) -> sessionmaker[Session]:
-    """
-    주어진 SQLAlchemy 엔진에 바인딩된 세션 팩토리를 생성합니다.
-
-    Args:
-        bind: SQLAlchemy 엔진 객체.
-
-    Returns:
-        autocommit=False, autoflush=False로 설정된 세션 팩토리.
-    """
-    return sessionmaker(autocommit=False, autoflush=False, bind=bind)
-
-
 def init_db() -> None:
     """
     데이터베이스 연결을 초기화합니다.
@@ -65,7 +52,7 @@ def init_db() -> None:
         with engine.connect():
             logger.info("데이터베이스 엔진 연결 테스트 성공.")
 
-        SessionLocal = get_session_factory(engine)
+        SessionLocal = _get_session_factory(engine)
 
         logger.info("데이터베이스 연결 및 세션 팩토리가 성공적으로 설정되었습니다.")
 
@@ -105,3 +92,16 @@ def get_db() -> Generator[Session, None, None]:
         yield db
     finally:
         db.close()
+
+
+def _get_session_factory(bind: Engine) -> sessionmaker[Session]:
+    """
+    주어진 SQLAlchemy 엔진에 바인딩된 세션 팩토리를 생성합니다.
+
+    Args:
+        bind: SQLAlchemy 엔진 객체.
+
+    Returns:
+        autocommit=False, autoflush=False로 설정된 세션 팩토리.
+    """
+    return sessionmaker(autocommit=False, autoflush=False, bind=bind)
