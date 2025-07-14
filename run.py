@@ -5,13 +5,13 @@ from typing import Any, Callable, List, Tuple
 
 from dotenv import load_dotenv
 
+load_dotenv()
+
 from src.config.api_config import OPENAI_API_KEY
 from src.config.blog_config import BLOG_CONFIGS
 from src.models.dto import CrawledContentDto
 from src.models.enums import Company
 from src.services.crawler import BlogCrawler
-
-load_dotenv()
 
 logging.basicConfig(
     level=logging.INFO,
@@ -130,7 +130,7 @@ def main() -> int:
     parser = setup_parser()
     args = parser.parse_args()
 
-    if not OPENAI_API_KEY or OPENAI_API_KEY == "your_openai_api_key_here":
+    if not OPENAI_API_KEY:
         logger.error("OPENAI_API_KEY가 설정되지 않았습니다. .env 파일을 확인해주세요.")
         return 1
 
