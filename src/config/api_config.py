@@ -2,7 +2,11 @@ import logging
 import os
 from typing import Optional
 
+from dotenv import load_dotenv
+
 logger = logging.getLogger(__name__)
+
+load_dotenv()
 
 OPENAI_API_KEY: Optional[str] = os.getenv("OPENAI_API_KEY")
 

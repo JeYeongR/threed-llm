@@ -3,10 +3,6 @@ import logging
 import sys
 from typing import Any, Callable, List, Tuple
 
-from dotenv import load_dotenv
-
-load_dotenv()
-
 from src.config.api_config import OPENAI_API_KEY
 from src.config.blog_config import BLOG_CONFIGS
 from src.models.dto import CrawledContentDto
